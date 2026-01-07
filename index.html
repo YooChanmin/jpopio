@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>whatsong.io - 로그인</title>
+    <title>jpop.io - 로그인</title>
     <style>
         body { text-align: center; margin-top: 50px; }
         input { padding: 10px; font-size: 16px; }
@@ -11,20 +11,29 @@
     </style>
 </head>
 <body>
-    <h1>WHATSONG.IO</h1>
+    <h1>JPOP.IO</h1>
     <p>닉네임을 입력하세요</p>
     <br>
     
-    <input type="text" id="userInput" placeholder="이름 입력">
+    <input type="text" id="userInput" placeholder="이름 입력" autofocus>
     <br><br>
     <button onclick="login()">입장하기</button>
 
     <script>
+        // 1. [추가됨] 엔터키 감지 이벤트 리스너
+        document.getElementById("userInput").addEventListener("keyup", function(event) {
+            // 눌린 키가 'Enter'라면
+            if (event.key === "Enter") {
+                event.preventDefault(); // 혹시 모를 브라우저 기본 동작 방지
+                login(); // 로그인 함수 실행
+            }
+        });
+
         function login() {
             const name = document.getElementById('userInput').value;
             if(!name) { alert("이름을 입력해주세요"); return; }
 
-            // 1. 서버로 이름 전송
+            // 서버로 이름 전송
             fetch('http://localhost:3000/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -32,7 +41,7 @@
             })
             .then(res => res.json())
             .then(data => {
-                // 2. 서버가 OK하면 페이지 이동
+                // 성공 시 방 만들기 페이지로 이동
                 if (data.success) {
                     window.location.href = '/createRoom'; 
                 }

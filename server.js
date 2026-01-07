@@ -17,10 +17,14 @@ app.get('/createRoom', (req, res) => {
     res.sendFile(path.join(__dirname, 'createRoom.html'));
 });
 
+app.get('/inGame', (req, res) => {
+    res.sendFile(path.join(__dirname, 'inGame.html'));
+});
+
 // 2. 데이터 받는 API
 app.post('/login', (req, res) => {
     const name = req.body.name;
-    console.log("접속한 유저 이름:", name);
+    console.log("accessed username:", name);
     res.json({ success: true }); // 성공 응답 보냄
 });
 
@@ -28,14 +32,17 @@ app.post('/login', (req, res) => {
 app.post('/create-room-data', (req, res) => {
     const rounds = req.body.rounds;
     const time = req.body.time;
-    console.log(`방 생성 요청: ${rounds}라운드 / ${time}초`);
+    const hint = req.body.hint;
+    const skipVoteRatio = req.body.skipVoteRatio;
+    const chatMode = req.body.chatMode;
+    console.log(`create room request: ${rounds} rounds / ${time} sec / hint ${hint} / skip vote ratio ${skipVoteRatio} / chat mode ${chatMode}`);
     
     res.json({ 
         success: true, 
-        message: "방이 생성되었습니다!" 
+        message: "room created" 
     });
 });
 
 app.listen(PORT, () => {
-    console.log(`서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
+    console.log(`server running at http://localhost:${PORT}`);
 });
