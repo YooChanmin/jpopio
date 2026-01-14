@@ -13,6 +13,7 @@ const MAX_PLAYERS = 12;
 app.get('/', (req, res) => res.sendFile(__dirname + '/public/index.html'));
 app.get('/room', (req, res) => res.sendFile(__dirname + '/public/room.html'));
 
+// 문제 데이터 검증 및 예시 데이터 필터링
 function validateQuestionPool(pool) {
     const targetArray = Array.isArray(pool) ? pool : (pool && pool.questions ? pool.questions : []);
     if (!Array.isArray(targetArray)) return [];

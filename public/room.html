@@ -25,7 +25,6 @@
             flex-shrink: 0;
         }
 
-        /* 로비 방 정보 박스 */
         .room-info {
             background-color: #2c3e50;
             padding: 15px;
@@ -49,7 +48,6 @@
             font-size: 18px;
         }
 
-        /* 유저 리스트 공통 스타일 */
         #userList {
             list-style: none;
             padding: 0;
@@ -70,12 +68,10 @@
             font-weight: bold;
         }
 
-        /* 로비 미복귀자(AFK) 스타일 */
         .status-afk {
             color: #888 !important;
         }
 
-        /* 인게임 전용 정보창 */
         .timer-box {
             font-size: 40px;
             font-weight: bold;
@@ -129,7 +125,6 @@
             display: block;
         }
 
-        /* 입력창 및 설정 도구 스타일 */
         .input-style {
             padding: 8px;
             text-align: center;
@@ -164,7 +159,6 @@
             cursor: not-allowed;
         }
 
-        /* 퇴장 버튼 스타일 통합 */
         .kick-btn {
             padding: 2px 8px;
             background-color: #e74c3c;
@@ -180,7 +174,6 @@
             background-color: #c0392b;
         }
 
-        /* 게임 화면 컨테이너 */
         .game-view {
             display: none;
             width: 100%;
@@ -264,7 +257,6 @@
             z-index: 400;
         }
 
-        /* 게임 종료 후 결과 화면 순위 스타일 */
         #gameResultView h2 {
             font-size: 60px;
             margin: 20px 0;
@@ -275,7 +267,7 @@
         .rank-2 { color: #bdc3c7; font-size: 65px !important; }
         .rank-3 { color: #cd7f32; font-size: 55px !important; }
 
-        /* 우측 패널 (채팅창) */
+        /* 우측 채팅 패널 */
         .right-panel {
             width: 300px;
             background-color: #2c3e50;
@@ -620,7 +612,6 @@
             socket.emit('join_room', { nickname: myNickname, roomCode: currentRoomCode });
         }
 
-        // SPA 화면 전환: 로비 복귀
         function switchToLobbyView() {
             document.getElementById('lobbyLeft').style.display = 'block';
             document.getElementById('gameLeft').style.display = 'none';
@@ -636,21 +627,23 @@
             isRoundEnded = false;
         }
 
-        // SPA 화면 전환: 게임 결과창
         function switchToResultView(ranks) {
             document.getElementById('lobbyView').style.display = 'none';
             document.getElementById('gameView').style.display = 'none';
             document.getElementById('gameResultView').style.display = 'flex';
             document.getElementById('mainSection').style.backgroundColor = '#2c3e50';
 
+            // 결과 화면 전환 시 유튜브 영상 정지 (추가됨)
+            if (isPlayerReady && player && player.stopVideo) {
+                player.stopVideo();
+            }
+
             const display = document.getElementById('finalRankDisplay');
-            // 상위 3명만 중앙에 크게 표시
             display.innerHTML = ranks.slice(0, 3).map((p, i) => {
                 return `<h2 class="rank-${i + 1}">#${i + 1} ${p.nickname} (${p.score}점)</h2>`;
             }).join('');
         }
 
-        // SPA 화면 전환: 게임 플레이창
         function switchToGameView() {
             document.getElementById('lobbyLeft').style.display = 'none';
             document.getElementById('gameLeft').style.display = 'block';
@@ -683,7 +676,6 @@
             }
         }
 
-        // 소켓 리스너
         socket.on('chat_message', (data) => {
             const list = document.getElementById('chatList');
             const li = document.createElement('li');
@@ -707,7 +699,6 @@
         });
 
         socket.on('user_joined', (data) => {
-            // 진행 중인 게임이 있으면 즉시 전환
             if (data.inGame && document.getElementById('lobbyView').style.display !== 'none') {
                 switchToGameView();
             }
@@ -717,7 +708,7 @@
             const list = document.getElementById('userList');
             list.innerHTML = data.users.map(u => {
                 const isMe = u.nickname === myNickname;
-                const isAfk = u.status !== 'lobby'; // 로비 복귀 안한 사람 감지
+                const isAfk = u.status !== 'lobby';
                 const canKick = isHost && !isMe;
                 const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>` : '';
                 return `
@@ -827,7 +818,6 @@
             location.href = '/';
         });
 
-        // 기능 함수
         function requestBackToLobby() {
             socket.emit('back_to_lobby');
             switchToLobbyView();
