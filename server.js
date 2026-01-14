@@ -271,6 +271,19 @@ io.on('connection', (socket) => {
         if (room.skipVotes.size >= threshold) endRound(socket.roomCode, "⏭️ 투표로 스킵되었습니다!");
     });
 
+    socket.on('kick_player', (targetId) => {
+        const room = rooms[socket.roomCode];
+        if (!room || room.hostId !== socket.id || targetId === socket.id) return;
+        const targetPlayer = room.players.find(p => p.id === targetId);
+        if (targetPlayer) {
+            // 강퇴 시 메시지를 '퇴장당했습니다'로 수정
+            io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${targetPlayer.nickname}님이 퇴장당했습니다.`, type: 'system' });
+            io.to(targetId).emit('kicked');
+            const targetSocket = io.sockets.sockets.get(targetId);
+            if (targetSocket) targetSocket.leave(socket.roomCode);
+        }
+    });
+
     socket.on('send_chat', (msg) => {
         const room = rooms[socket.roomCode];
         if (!room) return;
@@ -334,6 +347,7 @@ io.on('connection', (socket) => {
         const nickname = socket.nickname;
         room.players = room.players.filter(p => p.id !== socket.id);
         if (nickname) {
+            // 자발적 나감은 기존 유지
             io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${nickname}님이 퇴장하셨습니다.`, type: 'system' });
         }
         if (isHost && room.players.length > 0) {
@@ -347,6 +361,14 @@ io.on('connection', (socket) => {
                 }
             }, 3000);
         }
+        
+        io.to(socket.roomCode).emit('user_joined', { 
+            users: room.players.map(p => ({ id: p.id, nickname: p.nickname })),
+            currentCount: room.players.length, 
+            maxCount: MAX_PLAYERS, 
+            hostId: room.hostId
+        });
+        
         if (room.players.length === 0) {
             room.deleteTimer = setTimeout(() => { delete rooms[socket.roomCode]; }, 10000);
         }

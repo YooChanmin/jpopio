@@ -11,7 +11,7 @@
         .room-code-text { font-size: 32px; font-weight: bold; color: #f1c40f; letter-spacing: 2px; margin: 5px 0; }
         .user-list-title { border-bottom: 1px solid #7f8c8d; padding-bottom: 10px; margin-bottom: 10px; font-size: 18px;}
         #userList { list-style: none; padding: 0; overflow-y: auto; flex-grow: 1; }
-        #userList li { padding: 10px; border-bottom: 1px solid #34495e; }
+        #userList li { padding: 10px; border-bottom: 1px solid #34495e; display: flex; justify-content: space-between; align-items: center; }
         #userList li.me { color: #2ecc71; font-weight: bold; }
         
         .content { flex-grow: 1; background-color: #f0f2f5; padding: 40px; overflow-y: auto; text-align: center; }
@@ -32,6 +32,7 @@
         
         .file-btn { background-color: #2196F3; color: white; border: none; }
         .copy-btn { background-color: #9C27B0; color: white; border: none; }
+        .kick-btn { padding: 2px 8px; background-color: #e74c3c; color: white; border: none; font-size: 11px; border-radius: 3px; }
         .input-style { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
         .textarea-style { width: 90%; height: 250px; padding: 10px; margin: 10px auto; display: block; font-family: monospace; box-sizing: border-box; }
         
@@ -234,6 +235,11 @@
             } 
         });
 
+        socket.on('kicked', () => {
+            alert("방장에 의해 퇴장 처리되었습니다.");
+            location.href = '/';
+        });
+
         function setupUI() {
             const startBtn = document.getElementById('startBtn');
             const guestMsg = document.getElementById('guestMsg');
@@ -254,7 +260,19 @@
         function updateUserList(users, currentCount, maxCount, hostId) {
             const list = document.getElementById('userList');
             document.getElementById('userCount').innerText = `(${currentCount}/${maxCount})`;
-            list.innerHTML = users.map(u => `<li class="${u.nickname === myNickname ? 'me' : ''}">${(u.id === hostId ? "👑 " : "") + u.nickname}</li>`).join('');
+            list.innerHTML = users.map(u => {
+                const isMe = u.nickname === myNickname;
+                const canKick = isHost && !isMe;
+                // '강퇴'를 '퇴장'으로 변경
+                const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>` : '';
+                return `<li><span class="${isMe ? 'me' : ''}">${(u.id === hostId ? "👑 " : "") + u.nickname}</span>${kickBtn}</li>`;
+            }).join('');
+        }
+
+        function kickPlayer(id) {
+            if(confirm("해당 플레이어를 퇴장시키겠습니까?")) {
+                socket.emit('kick_player', id);
+            }
         }
 
         function startGame() {
@@ -289,7 +307,6 @@
         }
 
         function openSettings() { 
-            // 모달 열 때 현재 슬라이더 값 동기화
             document.getElementById('volumeSlider').value = globalVolume;
             document.getElementById('volumeValue').innerText = globalVolume;
             document.getElementById('settingsModal').style.display = 'flex'; 

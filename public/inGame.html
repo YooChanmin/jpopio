@@ -36,6 +36,7 @@
         
         .control-btns-wrapper { position: fixed; top: 10px; right: 310px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; align-items: flex-end; }
         .control-btn { color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .kick-btn-sm { padding: 1px 5px; background-color: #e74c3c; color: white; border: none; font-size: 10px; border-radius: 3px; cursor: pointer; margin-left: 5px; }
         #settingsBtn { background: rgba(52, 73, 94, 0.9); border: 1px solid #7f8c8d; }
         #skipBtn { background-color: #3498db; }
         #skipBtn:disabled { background-color: #555; cursor: not-allowed; }
@@ -57,7 +58,7 @@
                 <label>게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
                 <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)" style="width:100%;">
             </div>
-            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">닫기</button>
+            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px;">닫기</button>
         </div>
     </div>
 
@@ -90,12 +91,13 @@
         const params = new URLSearchParams(window.location.search);
         const roomCode = params.get('room');
         const nickname = sessionStorage.getItem("nickname");
+        const isHostInitial = sessionStorage.getItem("isHost") === "true";
+        let isHost = isHostInitial;
         
         let player, isPlayerReady = false, isRoundEnded = false, totalTime = 0, currentHint = null, globalVolume = localStorage.getItem('gameVolume') || 50;
         let currentRoundStartTime = 0;
 
         function openSettings() { 
-            // 모달 열 때 현재 설정된 볼륨 값 동기화
             document.getElementById('volumeSlider').value = globalVolume;
             document.getElementById('volumeValue').innerText = globalVolume;
             document.getElementById('settingsModal').style.display = 'flex'; 
@@ -172,6 +174,7 @@
         });
 
         socket.on('chat_message', (data) => {
+            const list = document.getElementById('chatList');
             const li = document.createElement('li');
             if (data.type === 'system') { 
                 li.className = 'chat-system'; 
@@ -184,16 +187,30 @@
             } else { 
                 li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; 
             }
-            document.getElementById('chatList').appendChild(li);
-            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
+            list.appendChild(li);
+            list.scrollTop = list.scrollHeight;
         });
 
         socket.on('correct_answer', (data) => {
+            const list = document.getElementById('chatList');
             const li = document.createElement('li'); 
             li.className = 'chat-correct';
             li.innerText = `🎉 ${data.nickname} 정답!`;
-            document.getElementById('chatList').appendChild(li);
-            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
+            list.appendChild(li);
+            list.scrollTop = list.scrollHeight;
+        });
+
+        socket.on('change_host', (data) => { 
+            if(socket.id === data.newHostId) { 
+                isHost = true; 
+                sessionStorage.setItem("isHost", "true"); 
+                alert("👑 방장이 되었습니다!"); 
+            } 
+        });
+
+        socket.on('kicked', () => {
+            alert("방장에 의해 퇴장 처리되었습니다.");
+            location.href = '/';
         });
 
         socket.on('user_joined', (data) => {
@@ -222,11 +239,22 @@
 
         function updateScoreBoard(players, hostId) {
             const board = document.getElementById('scoreBoard');
-            board.innerHTML = players.sort((a,b) => b.score - a.score).map((p,i) => `
-                <div class="player-row ${p.nickname === nickname ? 'me' : ''}">
-                    <span>${i+1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}</span>
-                    <span>${p.score}</span>
-                </div>`).join('');
+            board.innerHTML = players.sort((a,b) => b.score - a.score).map((p,i) => {
+                const isMe = p.nickname === nickname;
+                const canKick = isHost && !isMe;
+                const kickBtn = canKick ? `<button class="kick-btn-sm" onclick="kickPlayer('${p.id}')">❌</button>` : '';
+                return `
+                <div class="player-row ${isMe ? 'me' : ''}">
+                    <span>${i+1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${kickBtn}</span>
+                    <span>${p.score || 0}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function kickPlayer(id) {
+            if(confirm("해당 플레이어를 퇴장시키겠습니까?")) {
+                socket.emit('kick_player', id);
+            }
         }
 
         function voteSkip() { 
