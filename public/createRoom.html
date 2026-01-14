@@ -240,6 +240,12 @@
             location.href = '/';
         });
 
+        // 존재하지 않는 방 코드일 경우 처리
+        socket.on('room_not_found', () => {
+            alert("방을 찾을 수 없습니다.");
+            location.href = '/';
+        });
+
         function setupUI() {
             const startBtn = document.getElementById('startBtn');
             const guestMsg = document.getElementById('guestMsg');
@@ -263,7 +269,6 @@
             list.innerHTML = users.map(u => {
                 const isMe = u.nickname === myNickname;
                 const canKick = isHost && !isMe;
-                // '강퇴'를 '퇴장'으로 변경
                 const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>` : '';
                 return `<li><span class="${isMe ? 'me' : ''}">${(u.id === hostId ? "👑 " : "") + u.nickname}</span>${kickBtn}</li>`;
             }).join('');

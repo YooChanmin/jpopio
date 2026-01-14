@@ -58,7 +58,7 @@
                 <label>게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
                 <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)" style="width:100%;">
             </div>
-            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px;">닫기</button>
+            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">닫기</button>
         </div>
     </div>
 
@@ -213,6 +213,12 @@
             location.href = '/';
         });
 
+        // 존재하지 않는 방 코드일 경우 처리
+        socket.on('room_not_found', () => {
+            alert("방을 찾을 수 없습니다.");
+            location.href = '/';
+        });
+
         socket.on('user_joined', (data) => {
             updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId);
         });
@@ -271,7 +277,9 @@
             } 
         });
 
-        if (roomCode && nickname) socket.emit('join_room', { nickname, roomCode });
+        if (roomCode && nickname) {
+            socket.emit('join_room', { nickname, roomCode: roomCode });
+        }
     </script>
 </body>
 </html>

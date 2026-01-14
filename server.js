@@ -23,7 +23,6 @@ function validateQuestionPool(pool) {
         const hasLink = item.link && (item.link.includes('youtu.be') || item.link.includes('youtube.com'));
         const hasAnswer = item.answer && item.answer.toString().trim().length > 0;
         
-        // isExample 필드 체크 및 객체 내 'example' 키워드 필터링
         const isNotExample = item.isExample !== true && 
                              item.isExample !== 'true' &&
                              !JSON.stringify(item).toLowerCase().includes('example');
@@ -119,7 +118,8 @@ app.get('/generate-code', (req, res) => {
 });
 
 app.post('/update-room-settings', (req, res) => {
-    const { roomCode, rounds, time, hint, genre, customList, skipVoteRatio, chatMode } = req.body;
+    const { roomCode: rawCode, rounds, time, hint, genre, customList, skipVoteRatio, chatMode } = req.body;
+    const roomCode = rawCode ? rawCode.toUpperCase() : "";
     const room = rooms[roomCode];
     if (!room) return res.json({ success: false });
 
@@ -222,9 +222,18 @@ function endGame(roomCode) {
 
 io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
-        const { nickname, roomCode } = data;
+        const { nickname, roomCode: rawCode } = data;
+        const roomCode = rawCode ? rawCode.toUpperCase() : "";
         const room = rooms[roomCode];
-        if (!room || room.players.length >= MAX_PLAYERS) return;
+        
+        // 잘못된 방 코드 처리
+        if (!room) {
+            socket.emit('room_not_found');
+            return;
+        }
+
+        if (room.players.length >= MAX_PLAYERS) return;
+        
         socket.join(roomCode);
         socket.nickname = nickname; 
         socket.roomCode = roomCode;
@@ -276,7 +285,6 @@ io.on('connection', (socket) => {
         if (!room || room.hostId !== socket.id || targetId === socket.id) return;
         const targetPlayer = room.players.find(p => p.id === targetId);
         if (targetPlayer) {
-            // 강퇴 시 메시지를 '퇴장당했습니다'로 수정
             io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${targetPlayer.nickname}님이 퇴장당했습니다.`, type: 'system' });
             io.to(targetId).emit('kicked');
             const targetSocket = io.sockets.sockets.get(targetId);
@@ -347,7 +355,6 @@ io.on('connection', (socket) => {
         const nickname = socket.nickname;
         room.players = room.players.filter(p => p.id !== socket.id);
         if (nickname) {
-            // 자발적 나감은 기존 유지
             io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${nickname}님이 퇴장하셨습니다.`, type: 'system' });
         }
         if (isHost && room.players.length > 0) {
