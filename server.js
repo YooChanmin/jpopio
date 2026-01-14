@@ -133,7 +133,6 @@ app.post('/update-room-settings', (req, res) => {
     const room = rooms[roomCode];
     if (!room) return res.json({ success: false });
 
-    // 로비에 돌아오지 않은 사람이 있는지 최종 확인
     const allInLobby = room.players.every(p => p.status === 'lobby');
     if (!allInLobby) return res.json({ success: false, msg: "모든 인원이 로비로 돌아와야 합니다." });
 
@@ -156,7 +155,7 @@ app.post('/update-room-settings', (req, res) => {
     room.players.forEach(p => {
         p.score = 0;
         p.isCorrect = false;
-        p.status = 'playing'; // 게임 시작 시 상태 변경
+        p.status = 'playing';
     });
 
     io.to(roomCode).emit('chat_message', {
@@ -249,7 +248,7 @@ function endGame(roomCode) {
     room.acceptingAnswers = false;
     
     const sorted = [...room.players].sort((a, b) => b.score - a.score);
-    room.players.forEach(p => p.status = 'result'); // 결과 화면 상태로 변경
+    room.players.forEach(p => p.status = 'result');
 
     io.to(roomCode).emit('game_over', {
         ranks: sorted
@@ -287,7 +286,7 @@ io.on('connection', (socket) => {
                 nickname,
                 score: 0,
                 isCorrect: false,
-                status: 'lobby' // 기본 상태 로비
+                status: 'lobby'
             });
         }
 
@@ -311,7 +310,7 @@ io.on('connection', (socket) => {
             users: room.players.map(p => ({
                 id: p.id,
                 nickname: p.nickname,
-                status: p.status // 상태 포함
+                status: p.status
             })),
             currentCount: room.players.length,
             maxCount: MAX_PLAYERS,
@@ -320,7 +319,6 @@ io.on('connection', (socket) => {
         });
     });
 
-    // 로비 복귀 요청 처리
     socket.on('back_to_lobby', () => {
         const room = rooms[socket.roomCode];
         if (!room) return;

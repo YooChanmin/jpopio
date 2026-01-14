@@ -14,6 +14,7 @@
             overflow: hidden;
         }
 
+        /* 좌측 패널 레이아웃 */
         .left-panel {
             width: 280px;
             background-color: #34495e;
@@ -24,6 +25,7 @@
             flex-shrink: 0;
         }
 
+        /* 로비 방 정보 박스 */
         .room-info {
             background-color: #2c3e50;
             padding: 15px;
@@ -47,6 +49,7 @@
             font-size: 18px;
         }
 
+        /* 유저 리스트 공통 스타일 */
         #userList {
             list-style: none;
             padding: 0;
@@ -67,11 +70,12 @@
             font-weight: bold;
         }
 
-        /* 로비에 없는 사람(AFK) 회색 처리 */
+        /* 로비 미복귀자(AFK) 스타일 */
         .status-afk {
             color: #888 !important;
         }
 
+        /* 인게임 전용 정보창 */
         .timer-box {
             font-size: 40px;
             font-weight: bold;
@@ -110,6 +114,7 @@
             font-weight: bold;
         }
 
+        /* 중앙 메인 패널 */
         .main-content {
             flex-grow: 1;
             background-color: #f0f2f5;
@@ -124,6 +129,7 @@
             display: block;
         }
 
+        /* 입력창 및 설정 도구 스타일 */
         .input-style {
             padding: 8px;
             text-align: center;
@@ -153,30 +159,12 @@
             cursor: pointer;
         }
 
-        /* 비활성화된 시작 버튼 */
         .start-btn:disabled {
             background-color: #7f8c8d;
             cursor: not-allowed;
         }
 
-        .file-btn {
-            background-color: #2196F3;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .copy-btn {
-            background-color: #9C27B0;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
+        /* 퇴장 버튼 스타일 통합 */
         .kick-btn {
             padding: 2px 8px;
             background-color: #e74c3c;
@@ -185,8 +173,14 @@
             font-size: 11px;
             border-radius: 3px;
             cursor: pointer;
+            margin-left: 8px;
         }
 
+        .kick-btn:hover {
+            background-color: #c0392b;
+        }
+
+        /* 게임 화면 컨테이너 */
         .game-view {
             display: none;
             width: 100%;
@@ -270,18 +264,18 @@
             z-index: 400;
         }
 
-        /* 최종 결과 뷰 랭킹 스타일 */
+        /* 게임 종료 후 결과 화면 순위 스타일 */
         #gameResultView h2 {
             font-size: 60px;
-            margin: 10px 0;
-            color: #f1c40f;
+            margin: 20px 0;
             text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
         }
 
-        #gameResultView .rank-1 { font-size: 80px; color: #f1c40f; }
-        #gameResultView .rank-2 { font-size: 60px; color: #bdc3c7; }
-        #gameResultView .rank-3 { font-size: 50px; color: #cd7f32; }
+        .rank-1 { color: #f1c40f; font-size: 80px !important; }
+        .rank-2 { color: #bdc3c7; font-size: 65px !important; }
+        .rank-3 { color: #cd7f32; font-size: 55px !important; }
 
+        /* 우측 패널 (채팅창) */
         .right-panel {
             width: 300px;
             background-color: #2c3e50;
@@ -360,6 +354,7 @@
             color: #333;
         }
 
+        /* 최상단 제어 버튼 그룹 */
         .control-btns-wrapper {
             position: fixed;
             top: 10px;
@@ -382,17 +377,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
 
-        .kick-btn-sm {
-            padding: 1px 5px;
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            font-size: 10px;
-            border-radius: 3px;
-            cursor: pointer;
-            margin-left: 5px;
-        }
-
         #settingsBtn {
             background: rgba(52, 73, 94, 0.9);
             border: 1px solid #7f8c8d;
@@ -403,6 +387,7 @@
             display: none;
         }
 
+        /* 환경설정 모달 */
         #settingsModal {
             display: none;
             position: fixed;
@@ -428,6 +413,7 @@
     </style>
 </head>
 <body>
+
     <div class="control-btns-wrapper">
         <button id="settingsBtn" class="control-btn" onclick="openSettings()">⚙️ 환경설정</button>
         <button id="skipBtn" class="control-btn" onclick="voteSkip()">⏭️ 스킵 투표 (0/0)</button>
@@ -450,7 +436,7 @@
             <div class="room-info">
                 <div style="font-size: 14px; color: #bdc3c7;">ROOM CODE</div>
                 <div id="roomCodeDisplay" class="room-code-text">...</div>
-                <button onclick="copyRoomCode()" style="background:none; border:1px solid #bdc3c7; color:#bdc3c7;">코드 복사</button>
+                <button onclick="copyRoomCode()" style="background:none; border:1px solid #bdc3c7; color:#bdc3c7; cursor:pointer;">코드 복사</button>
             </div>
             <div class="user-list-title">접속 유저 <span id="userCount">(0/12)</span></div>
             <ul id="userList"></ul>
@@ -552,7 +538,7 @@
         </div>
 
         <div id="gameResultView" class="game-view">
-            <h1 style="color: white; margin-bottom: 50px;">🎮 게임 종료!</h1>
+            <h1 style="color: white; margin-bottom: 30px;">🎮 최종 순위</h1>
             <div id="finalRankDisplay"></div>
             <br><br>
             <button class="start-btn" onclick="requestBackToLobby()">로비로 돌아가기</button>
@@ -563,7 +549,7 @@
         <div class="chat-header">💬 채팅 / 정답 입력</div>
         <ul id="chatList"></ul>
         <div class="chat-input-bar">
-            <input type="text" id="chatInput" placeholder="대화 내용을 입력하세요..." autofocus>
+            <input type="text" id="chatInput" placeholder="메시지 또는 정답 입력..." autofocus>
         </div>
     </aside>
 
@@ -572,12 +558,17 @@
     <script>
         const socket = io({ transports: ['websocket'] });
         const params = new URLSearchParams(window.location.search);
+        
         let currentRoomCode = params.get('room');
         const myNickname = sessionStorage.getItem("nickname");
         let isHost = sessionStorage.getItem("isHost") === "true";
         let globalVolume = localStorage.getItem('gameVolume') || 50;
 
-        let player, isPlayerReady = false, isRoundEnded = false, totalTime = 0, currentHint = null;
+        let player;
+        let isPlayerReady = false;
+        let isRoundEnded = false;
+        let totalTime = 0;
+        let currentHint = null;
         let currentRoundStartTime = 0;
 
         const defaultTemplate = [
@@ -591,6 +582,7 @@
                 location.href = '/';
                 return;
             }
+
             document.getElementById('volumeSlider').value = globalVolume;
             document.getElementById('volumeValue').innerText = globalVolume;
 
@@ -613,6 +605,7 @@
 
             const savedData = sessionStorage.getItem("customProblems");
             const editor = document.getElementById('jsonEditor');
+            
             if (isHost) {
                 if (savedData && savedData !== "[]") {
                     try {
@@ -627,7 +620,7 @@
             socket.emit('join_room', { nickname: myNickname, roomCode: currentRoomCode });
         }
 
-        // 로비 뷰 전환
+        // SPA 화면 전환: 로비 복귀
         function switchToLobbyView() {
             document.getElementById('lobbyLeft').style.display = 'block';
             document.getElementById('gameLeft').style.display = 'none';
@@ -636,23 +629,28 @@
             document.getElementById('gameResultView').style.display = 'none';
             document.getElementById('mainSection').style.backgroundColor = '#f0f2f5';
             document.getElementById('skipBtn').style.display = 'none';
-            
-            if (isPlayerReady && player && player.stopVideo) player.stopVideo();
+
+            if (isPlayerReady && player && player.stopVideo) {
+                player.stopVideo();
+            }
+            isRoundEnded = false;
         }
 
-        // 게임 결과 뷰 전환
+        // SPA 화면 전환: 게임 결과창
         function switchToResultView(ranks) {
             document.getElementById('lobbyView').style.display = 'none';
             document.getElementById('gameView').style.display = 'none';
             document.getElementById('gameResultView').style.display = 'flex';
             document.getElementById('mainSection').style.backgroundColor = '#2c3e50';
-            
+
             const display = document.getElementById('finalRankDisplay');
+            // 상위 3명만 중앙에 크게 표시
             display.innerHTML = ranks.slice(0, 3).map((p, i) => {
-                return `<h2 class="rank-${i+1}">#${i+1} ${p.nickname} (${p.score}점)</h2>`;
+                return `<h2 class="rank-${i + 1}">#${i + 1} ${p.nickname} (${p.score}점)</h2>`;
             }).join('');
         }
 
+        // SPA 화면 전환: 게임 플레이창
         function switchToGameView() {
             document.getElementById('lobbyLeft').style.display = 'none';
             document.getElementById('gameLeft').style.display = 'block';
@@ -685,6 +683,7 @@
             }
         }
 
+        // 소켓 리스너
         socket.on('chat_message', (data) => {
             const list = document.getElementById('chatList');
             const li = document.createElement('li');
@@ -698,7 +697,9 @@
             } else if (data.type === 'chat_html') {
                 li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
             } else {
-                if (data.nickname === myNickname) li.className = 'chat-me';
+                if (data.nickname === myNickname) {
+                    li.className = 'chat-me';
+                }
                 li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
             }
             list.appendChild(li);
@@ -706,31 +707,33 @@
         });
 
         socket.on('user_joined', (data) => {
+            // 진행 중인 게임이 있으면 즉시 전환
             if (data.inGame && document.getElementById('lobbyView').style.display !== 'none') {
                 switchToGameView();
             }
-            
+
             document.getElementById('userCount').innerText = `(${data.currentCount}/${data.maxCount})`;
-            
-            // 로비의 유저 목록 업데이트 (AFK 체크)
+
             const list = document.getElementById('userList');
             list.innerHTML = data.users.map(u => {
                 const isMe = u.nickname === myNickname;
-                const isAfk = u.status !== 'lobby'; // 로비에 없으면 AFK
+                const isAfk = u.status !== 'lobby'; // 로비 복귀 안한 사람 감지
                 const canKick = isHost && !isMe;
                 const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>` : '';
-                return `<li><span class="${isMe ? 'me' : ''} ${isAfk ? 'status-afk' : ''}">${(u.id === data.hostId ? "👑 " : "") + u.nickname}</span>${kickBtn}</li>`;
+                return `
+                    <li>
+                        <span class="${isMe ? 'me' : ''} ${isAfk ? 'status-afk' : ''}">
+                            ${(u.id === data.hostId ? "👑 " : "") + u.nickname}
+                        </span>
+                        ${kickBtn}
+                    </li>`;
             }).join('');
-            
-            // 모든 사람이 로비에 있는지 확인하여 시작 버튼 활성화/비활성화
+
             if (isHost) {
                 const allReady = data.users.every(u => u.status === 'lobby');
-                document.getElementById('startBtn').disabled = !allReady;
-                if (!allReady) {
-                    document.getElementById('startBtn').innerText = "대기 중...";
-                } else {
-                    document.getElementById('startBtn').innerText = "🔥 게임 시작";
-                }
+                const btn = document.getElementById('startBtn');
+                btn.disabled = !allReady;
+                btn.innerText = allReady ? "🔥 게임 시작" : "대기 중...";
             }
 
             updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId);
@@ -824,6 +827,7 @@
             location.href = '/';
         });
 
+        // 기능 함수
         function requestBackToLobby() {
             socket.emit('back_to_lobby');
             switchToLobbyView();
@@ -847,7 +851,9 @@
                     customList: JSON.parse(document.getElementById('jsonEditor').value || "[]"),
                     genre: document.getElementById('genreSelect').value
                 })
-            }).then(res => res.json()).then(data => {
+            })
+            .then(res => res.json())
+            .then(data => {
                 if (data.msg) alert(data.msg);
             });
         }
@@ -856,8 +862,13 @@
             player = new YT.Player('player', {
                 height: '100%',
                 width: '100%',
-                playerVars: { 'autoplay': 1, 'controls': 0 },
-                events: { 'onReady': () => { isPlayerReady = true; } }
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 0
+                },
+                events: {
+                    'onReady': () => { isPlayerReady = true; }
+                }
             });
         }
 
@@ -869,27 +880,110 @@
         function updateScoreBoard(players, hostId) {
             const board = document.getElementById('scoreBoard');
             if (!board) return;
+
             board.innerHTML = players.sort((a, b) => b.score - a.score).map((p, i) => {
                 const isMe = p.nickname === myNickname;
                 const canKick = isHost && !isMe;
-                const kickBtn = canKick ? `<button class="kick-btn-sm" onclick="kickPlayer('${p.id}')">❌</button>` : '';
-                return `<div class="player-row ${isMe ? 'me' : ''}"><span>${i + 1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${kickBtn}</span><span>${p.score || 0}</span></div>`;
+                const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${p.id}')">퇴장</button>` : '';
+                return `
+                    <div class="player-row ${isMe ? 'me' : ''}">
+                        <span>${i + 1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${kickBtn}</span>
+                        <span>${p.score || 0}</span>
+                    </div>`;
             }).join('');
         }
 
-        function kickPlayer(id) { if (confirm("해당 플레이어를 퇴장시키겠습니까?")) socket.emit('kick_player', id); }
-        function voteSkip() { if (!isRoundEnded) socket.emit('vote_skip'); document.getElementById('skipBtn').disabled = true; }
-        function openSettings() { document.getElementById('volumeSlider').value = globalVolume; document.getElementById('volumeValue').innerText = globalVolume; document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
-        function saveVolume(val) { globalVolume = val; document.getElementById('volumeValue').innerText = val; localStorage.setItem('gameVolume', val); if (isPlayerReady && player && player.setVolume) player.setVolume(val); }
-        function copyRoomCode() { navigator.clipboard.writeText(currentRoomCode); alert("복사완료"); }
-        function toggleRoundInput(sel) { if (sel.value === 'custom') { sel.style.display = 'none'; document.getElementById('customRoundArea').style.display = 'inline-block'; } }
-        function resetRoundInput() { document.getElementById('customRoundArea').style.display = 'none'; document.getElementById('roundsSelect').style.display = 'inline-block'; document.getElementById('roundsSelect').value = '25'; }
-        function toggleView() { const basic = document.getElementById('basicSettings'), custom = document.getElementById('customViewer'), btn = document.getElementById('toggleBtn'), isNone = custom.style.display === 'none'; custom.style.display = isNone ? 'block' : 'none'; basic.style.display = isNone ? 'none' : 'block'; btn.innerText = isNone ? "기본 설정으로 돌아가기" : "커스텀 문제 확인"; }
-        async function copyJsonToClipboard() { await navigator.clipboard.writeText(document.getElementById('jsonEditor').value); alert("복사완료"); }
-        function importFromFile(i) { const r = new FileReader(); r.onload = e => { document.getElementById('jsonEditor').value = JSON.stringify(JSON.parse(e.target.result), null, 2); }; r.readAsText(i.files[0]); }
-        function exportToJson() { const blob = new Blob([document.getElementById('jsonEditor').value], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my_quiz_data.json'; a.click(); }
-        document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } });
+        function kickPlayer(id) {
+            if (confirm("해당 플레이어를 퇴장시키겠습니까?")) {
+                socket.emit('kick_player', id);
+            }
+        }
+
+        function voteSkip() {
+            if (!isRoundEnded) {
+                socket.emit('vote_skip');
+            }
+            document.getElementById('skipBtn').disabled = true;
+        }
+
+        function openSettings() {
+            document.getElementById('volumeSlider').value = globalVolume;
+            document.getElementById('volumeValue').innerText = globalVolume;
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+
+        function closeSettings(e) {
+            if (e.target.id === 'settingsModal') {
+                e.target.style.display = 'none';
+            }
+        }
+
+        function saveVolume(val) {
+            globalVolume = val;
+            document.getElementById('volumeValue').innerText = val;
+            localStorage.setItem('gameVolume', val);
+            if (isPlayerReady && player && player.setVolume) {
+                player.setVolume(val);
+            }
+        }
+
+        function copyRoomCode() {
+            navigator.clipboard.writeText(currentRoomCode);
+            alert("복사완료");
+        }
+
+        function toggleRoundInput(sel) {
+            if (sel.value === 'custom') {
+                sel.style.display = 'none';
+                document.getElementById('customRoundArea').style.display = 'inline-block';
+            }
+        }
+
+        function resetRoundInput() {
+            document.getElementById('customRoundArea').style.display = 'none';
+            document.getElementById('roundsSelect').style.display = 'inline-block';
+            document.getElementById('roundsSelect').value = '25';
+        }
+
+        function toggleView() {
+            const basic = document.getElementById('basicSettings');
+            const custom = document.getElementById('customViewer');
+            const btn = document.getElementById('toggleBtn');
+            const isNone = custom.style.display === 'none';
+
+            custom.style.display = isNone ? 'block' : 'none';
+            basic.style.display = isNone ? 'none' : 'block';
+            btn.innerText = isNone ? "기본 설정으로 돌아가기" : "커스텀 문제 확인";
+        }
+
+        async function copyJsonToClipboard() {
+            await navigator.clipboard.writeText(document.getElementById('jsonEditor').value);
+            alert("복사완료");
+        }
+
+        function importFromFile(i) {
+            const r = new FileReader();
+            r.onload = e => {
+                document.getElementById('jsonEditor').value = JSON.stringify(JSON.parse(e.target.result), null, 2);
+            };
+            r.readAsText(i.files[0]);
+        }
+
+        function exportToJson() {
+            const blob = new Blob([document.getElementById('jsonEditor').value], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my_quiz_data.json';
+            a.click();
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.value.trim()) {
+                socket.emit('send_chat', e.target.value.trim());
+                e.target.value = '';
+            }
+        });
     </script>
 </body>
 </html>
