@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>whatsong.io - 메인</title>
+    <style>
+        body { text-align: center; margin-top: 30px; font-family: 'Nanum Gothic', sans-serif; background-color: #f0f2f5; }
+        .main-container { background-color: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 900px; width: 90%; }
+        .input-style { padding: 8px; font-size: 14px; margin: 5px; height: 40px; box-sizing: border-box; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+        button { cursor: pointer; border-radius: 4px; border: 1px solid #999; padding: 8px 15px; margin: 5px; font-size: 14px; }
+        
+        .game-start-section { display: flex; justify-content: space-around; align-items: center; margin: 20px 0; padding-bottom: 20px; border-bottom: 2px dashed #ddd; flex-wrap: wrap; gap: 20px; }
+        .action-box { background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #eee; width: 40%; min-width: 300px; }
+        .action-title { font-weight: bold; margin-bottom: 10px; font-size: 18px; color: #555; }
+        
+        .create-btn { width: 100%; padding: 12px; font-size: 18px; background-color: #2196F3; color: white; border: none; font-weight: bold; }
+        .create-btn:hover { background-color: #1976D2; }
+        
+        .join-btn { padding: 12px 20px; font-size: 16px; background-color: #4CAF50; color: white; border: none; font-weight: bold; }
+        .join-btn:hover { background-color: #388E3C; }
+        
+        .toggle-custom-area-btn { width: 100%; padding: 10px; background-color: #fff; border: 1px solid #ccc; color: #555; font-weight: bold; margin-top: 10px; }
+        .toggle-custom-area-btn:hover { background-color: #eee; }
+        
+        #customMakerArea { display: none; margin-top: 20px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .mini-btn { padding: 0 10px; height: 40px; font-weight: bold; background: #eee; }
+        .add-btn { background-color: #e0e0e0; }
+        .copy-btn { background-color: #9C27B0; color: white; border: none; }
+        .file-btn { background-color: #607D8B; color: white; border: none; }
+        .toggle-mode-btn { background-color: #FF9800; color: white; border: none; }
+        
+        #customListDisplay { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-height: 400px; overflow-y: auto; border-top: 2px solid #eee; }
+        #customListDisplay li { background: #fff; margin: 5px 0; padding: 10px; border: 1px solid #eee; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        #customListDisplay li span { flex-grow: 1; margin-right: 10px; word-break: break-all; }
+        
+        .textarea-style { width: 100%; height: 300px; padding: 10px; margin-top: 10px; border: 1px solid #333; background: #f8f8f8; font-family: monospace; box-sizing: border-box; }
+        .answer-row { display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 5px;}
+
+        /* ★ [추가] 설정 버튼 및 모달 스타일 */
+        #settingsBtn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; transition: background 0.2s; }
+        #settingsBtn:hover { background: rgba(0,0,0,0.8); }
+        #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 400; justify-content: center; align-items: center; }
+        .modal-content { background: white; color: black; padding: 25px; border-radius: 10px; width: 300px; text-align: center; border: 1px solid #ccc; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .slider-container { margin: 20px 0; }
+        input[type=range] { width: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <button id="settingsBtn" onclick="openSettings()">⚙️ 환경설정</button>
+
+    <div id="settingsModal" onclick="closeSettings(event)">
+        <div class="modal-content">
+            <h2 style="margin-top:0;">🔊 환경설정</h2>
+            <div class="slider-container">
+                <label for="volumeSlider">게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)">
+            </div>
+            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; cursor:pointer; background:#e74c3c; color:white; border:none; border-radius:5px;">닫기</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <h1>WHATSONG.IO</h1>
+        <h3>1. 닉네임 입력</h3>
+        <input type="text" id="userInput" class="input-style" placeholder="닉네임 (예: 노래왕)" style="width: 250px;" autofocus>
+        <hr style="margin: 20px 0;">
+
+        <div class="game-start-section">
+            <div class="action-box">
+                <div class="action-title">새로운 방 만들기</div>
+                <p style="font-size:12px; color:#666;">방장이 되어<br>게임을 설정합니다.</p>
+                <button class="create-btn" onclick="goToCreateRoom()">방 설정하러 가기 ➡️</button>
+            </div>
+            <div class="action-box">
+                <div class="action-title">친구 방에 참여하기</div>
+                <p style="font-size:12px; color:#666;">공유받은 코드를 입력하세요.</p>
+                <div style="display:flex; justify-content:center; gap:5px;">
+                    <input type="text" id="roomCodeInput" class="input-style" placeholder="방 코드 (6자리)" style="width: 150px; text-transform:uppercase;">
+                    <button class="join-btn" onclick="joinRoom()">입장 🚀</button>
+                </div>
+            </div>
+        </div>
+
+        <button class="toggle-custom-area-btn" onclick="toggleCustomArea()">🎵 커스텀 문제 만들기 (선택사항) ▼</button>
+        
+        <div id="customMakerArea">
+            <h3 style="margin-top:20px;">커스텀 문제 제작소</h3>
+            <p style="font-size:12px; color:#666;">직접 만든 문제를 가지고 방을 만들 수 있습니다.</p>
+
+            <div style="margin-bottom: 10px;">
+                <button class="file-btn" onclick="document.getElementById('fileInput').click()">📂 불러오기</button>
+                <button class="file-btn" onclick="exportToJson()">💾 저장하기</button>
+                <button id="copyBtn" class="copy-btn" onclick="copyToClipboard()" style="display: none;">📋 복사하기</button>
+                <button class="toggle-mode-btn" onclick="toggleEditMode()">📝 텍스트 편집</button>
+                <input type="file" id="fileInput" style="display: none;" onchange="importFromFile(this)" accept=".json">
+            </div>
+
+            <div id="listViewArea">
+                <div style="display: flex; gap: 5px; justify-content: center;">
+                    <input type="text" id="ytLink" class="input-style" placeholder="YouTube 링크" style="width: 350px;">
+                    <input type="number" id="startTime" class="input-style" placeholder="시작(기본 0초)" style="width: 120px;">
+                </div>
+                <div id="answersContainer" style="margin-top: 5px;">
+                    <div class="answer-row">
+                        <input type="text" class="input-style answer-input" placeholder="정답 입력" style="width: 200px;">
+                        <button class="mini-btn" onclick="addAnswerField()">＋ 정답 추가</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; justify-content: center; margin-top: 5px;">
+                    <input type="text" id="hint" class="input-style" placeholder="힌트 (선택)" style="width: 200px;">
+                    <button class="add-btn" onclick="addItemToList()">➕ 문제 추가</button>
+                </div>
+                <ul id="customListDisplay"></ul>
+            </div>
+
+            <div id="textViewArea" style="display: none;">
+                <textarea id="jsonEditor" class="textarea-style"></textarea>
+                <button class="toggle-mode-btn" onclick="applyTextToData()" style="width:100%; margin-top:5px;">⬇️ 리스트로 적용하기</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ★ [설정 로직]
+        let globalVolume = localStorage.getItem('gameVolume') || 50;
+        
+        window.onload = function() {
+            // 저장된 볼륨 불러와서 슬라이더 세팅
+            document.getElementById('volumeSlider').value = globalVolume;
+            document.getElementById('volumeValue').innerText = globalVolume;
+        };
+
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
+        
+        function saveVolume(val) {
+            globalVolume = val;
+            document.getElementById('volumeValue').innerText = val;
+            localStorage.setItem('gameVolume', val); // 로컬 스토리지 저장
+        }
+
+        // --- 기존 로직 ---
+        let customProblems = [];
+
+        function toggleCustomArea() {
+            const area = document.getElementById('customMakerArea');
+            const btn = document.querySelector('.toggle-custom-area-btn');
+            if (area.style.display === 'block') {
+                area.style.display = 'none';
+                btn.innerText = "🎵 커스텀 문제 만들기 (선택사항) ▼";
+            } else {
+                area.style.display = 'block';
+                btn.innerText = "🎵 커스텀 문제 만들기 (접기) ▲";
+            }
+        }
+
+        function goToCreateRoom() {
+            const name = document.getElementById('userInput').value.trim();
+            if(!name) { alert("닉네임을 입력해주세요!"); document.getElementById('userInput').focus(); return; }
+            sessionStorage.setItem("nickname", name);
+            sessionStorage.setItem("customProblems", JSON.stringify(customProblems));
+            sessionStorage.setItem("isHost", "true"); 
+            window.location.href = '/createRoom';
+        }
+
+        function joinRoom() {
+            const name = document.getElementById('userInput').value.trim();
+            const code = document.getElementById('roomCodeInput').value.trim();
+            if(!name) { alert("닉네임을 입력해주세요!"); document.getElementById('userInput').focus(); return; }
+            if(!code) { alert("방 코드를 입력해주세요!"); document.getElementById('roomCodeInput').focus(); return; }
+            sessionStorage.setItem("nickname", name);
+            sessionStorage.removeItem("customProblems"); 
+            sessionStorage.setItem("isHost", "false");
+            window.location.href = `/createRoom?room=${code}`;
+        }
+
+        function toggleEditMode() {
+            const listArea = document.getElementById('listViewArea');
+            const textArea = document.getElementById('textViewArea');
+            const editor = document.getElementById('jsonEditor');
+            const btn = document.querySelector('.toggle-mode-btn');
+            const copyBtn = document.getElementById('copyBtn');
+
+            if (textArea.style.display === 'none') {
+                if (customProblems.length > 0) {
+                    editor.value = JSON.stringify(customProblems, null, 2);
+                } else {
+                    editor.value = `[\n  {\n    "link": "https://youtu.be/example1",\n    "startTime": "0",\n    "answer": "정답1,정답2",\n    "hint": "힌트1"\n  },\n  {\n    "link": "https://youtu.be/example2",\n    "startTime": "30",\n    "answer": "정답3",\n    "hint": "힌트2"\n  }\n]`;
+                }
+                listArea.style.display = 'none'; textArea.style.display = 'block'; btn.innerText = "📋 리스트 보기 (취소)";
+                copyBtn.style.display = 'inline-block';
+            } else {
+                listArea.style.display = 'block'; textArea.style.display = 'none'; btn.innerText = "📝 텍스트 편집";
+                copyBtn.style.display = 'none';
+            }
+        }
+
+        function applyTextToData() {
+            try {
+                const parsed = JSON.parse(document.getElementById('jsonEditor').value);
+                if (Array.isArray(parsed)) { customProblems = parsed; updateListUI(); toggleEditMode(); alert("적용되었습니다!"); }
+                else alert("형식이 올바르지 않습니다.");
+            } catch (e) { alert("JSON 오류: " + e.message); }
+        }
+
+        function addAnswerField() {
+            const div = document.createElement('div');
+            div.className = 'answer-row';
+            div.innerHTML = `<input type="text" class="input-style answer-input" placeholder="추가 정답" style="width: 200px;">
+                             <button class="mini-btn" style="color:red;" onclick="this.parentElement.remove()">－ 삭제</button>`;
+            document.getElementById('answersContainer').appendChild(div);
+        }
+
+        function addItemToList(){
+            const link = document.getElementById('ytLink').value.trim();
+            const hint = document.getElementById('hint').value.trim();
+            const start = document.getElementById('startTime').value.trim() || "0";
+            const answers = Array.from(document.querySelectorAll('.answer-input')).map(i => i.value.trim()).filter(v => v);
+            if (!link || answers.length === 0) { alert("링크와 정답을 입력하세요."); return; }
+            customProblems.push({ link, startTime: start, answer: answers.join(','), hint });
+            updateListUI();
+            
+            document.getElementById('ytLink').value = ''; document.getElementById('startTime').value = '';
+            document.getElementById('hint').value = '';
+            document.getElementById('answersContainer').innerHTML = `<div class="answer-row"><input type="text" class="input-style answer-input" placeholder="정답 입력" style="width: 200px;"><button class="mini-btn" onclick="addAnswerField()">＋ 정답 추가</button></div>`;
+            document.getElementById('ytLink').focus();
+        }
+
+        function updateListUI() {
+            const list = document.getElementById('customListDisplay'); list.innerHTML = "";
+            customProblems.forEach((item, index) => {
+                const li = document.createElement("li");
+                li.innerHTML = `<span><b>Q${index + 1}.</b> ${item.answer} <small>(${item.link})</small></span><button class="mini-btn" style="color:red; font-size:12px;" onclick="customProblems.splice(${index},1); updateListUI();">삭제</button>`;
+                list.appendChild(li);
+            });
+        }
+
+        async function copyToClipboard() {
+            if(customProblems.length===0) return alert("데이터 없음");
+            await navigator.clipboard.writeText(JSON.stringify(customProblems, null, 2)); alert("복사 완료!");
+        }
+
+        async function exportToJson() {
+            if(customProblems.length===0) return alert("데이터 없음");
+            const dataStr = JSON.stringify(customProblems, null, 2);
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await window.showSaveFilePicker({ suggestedName: 'my_quiz_data.json', types: [{ description: 'JSON File', accept: {'application/json': ['.json']} }] });
+                    const writable = await handle.createWritable(); await writable.write(dataStr); await writable.close(); return;
+                } catch (err) { if (err.name !== 'AbortError') console.error(err); return; }
+            }
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'my_quiz_data.json'; a.click(); URL.revokeObjectURL(url);
+        }
+
+        function importFromFile(input) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const loaded = JSON.parse(e.target.result);
+                    if(Array.isArray(loaded)) { customProblems = confirm("덮어쓰시겠습니까?") ? loaded : customProblems.concat(loaded); updateListUI(); }
+                    else alert("배열 형식이 아닙니다.");
+                } catch(err) { alert("파일 오류"); }
+            };
+            reader.readAsText(input.files[0]); input.value = '';
+        }
+    </script>
+</body>
+</html>

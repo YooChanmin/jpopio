@@ -1,190 +1,292 @@
 const express = require('express');
-const http = require('http'); // Node.js HTTP Module
-const { Server } = require("socket.io"); // Socket.io Module
-const cors = require('cors');
+const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 const path = require('path');
 
-const app = express();
-const server = http.createServer(app); // Wrap app with http server
-const io = new Server(server); // Create Socket.io server
-
-const PORT = 3000;
-
-// Middleware
-app.use(cors());
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// -------------------- Data Storage --------------------
-const rooms = {}; // Room Data: { "CODE": { rounds, time, ... } }
-const users = {}; // User Data: { "socketID": { nickname, room } }
+app.get('/', (req, res) => res.sendFile(__dirname + '/public/index.html'));
+app.get('/createRoom', (req, res) => res.sendFile(__dirname + '/public/createRoom.html'));
+app.get('/inGame', (req, res) => res.sendFile(__dirname + '/public/inGame.html'));
 
-// -------------------- Helper Functions --------------------
-function generateRoomCode() {
-    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const length = 6;
+let rooms = {};
+
+const defaultQuestions = [
+    { link: "https://youtu.be/gdZLi9oWNZg", startTime: "0", answer: "BTS,Dynamite,다이너마이트", hint: "빌보드 1위" },
+    { link: "https://youtu.be/d9IxdwEFk1c", startTime: "46", answer: "아이유,팔레트,Palette", hint: "지드래곤 피처링" },
+    { link: "https://youtu.be/K9_VFxzCuQ0", startTime: "53", answer: "로제,아파트,APT", hint: "술게임" },
+    { link: "https://youtu.be/pBuZEGYXA6E", startTime: "50", answer: "뉴진스,Ditto,디토", hint: "겨울 느낌" }
+];
+
+function getUniqueRoomCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        result += characters.charAt(randomIndex);
+    while (true) {
+        result = '';
+        for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+        if (!rooms[result]) return result;
     }
-    return result;
 }
 
-function getUsersInRoom(roomCode) {
-    const userList = [];
-    for (const id in users) {
-        if (users[id].room === roomCode) {
-            userList.push(users[id].nickname);
-        }
-    }
-    return userList;
+function normalizeAnswer(str) {
+    if (!str) return "";
+    return str.toString().trim().toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
 }
 
-// -------------------- HTTP Routes --------------------
+function shuffle(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
 
-app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
-app.get('/createRoom', (req, res) => { res.sendFile(path.join(__dirname, 'createRoom.html')); });
-app.get('/inGame', (req, res) => { res.sendFile(path.join(__dirname, 'inGame.html')); });
-
-// Login API
-app.post('/login', (req, res) => {
-    const name = req.body.name;
-    console.log(`[API] User logged in: ${name}`); // Log changed to English
-    res.json({ success: true });
-});
-
-// Create Room API
-app.post('/create-room-data', (req, res) => {
-    const { rounds, time, hint, skipVoteRatio, chatMode, customList } = req.body;
-
-    // Generate unique room code
-    let roomCode;
-    do {
-        roomCode = generateRoomCode();
-    } while (rooms[roomCode]);
-
-    // Save room data
-    rooms[roomCode] = {
-        rounds,
-        time,
-        hint,
-        skipVoteRatio,
-        chatMode,
-        customList: customList || [],
-        players: []
-    };
-
-    console.log(`[API] Room Created. Code: ${roomCode}`);
-    console.log(`      Settings: ${rounds} Rounds / ${time} sec / Custom Problems: ${customList ? customList.length : 0}`);
-
-    res.json({ 
-        success: true, 
-        roomCode: roomCode, 
-        message: "Room created successfully!" 
-    });
-});
-
-// -------------------- Socket.io Logic --------------------
-
-io.on('connection', (socket) => {
-    console.log(`[Socket] New connection: ${socket.id}`);
-
-    // 1. Join Room
-    socket.on('join_room', (data) => {
-        const { nickname, roomCode } = data;
-
-        // Check if room exists
-        if (!rooms[roomCode]) {
-            socket.emit('error', { message: "Room not found" });
-            return;
-        }
-
-        // Save user info
-        users[socket.id] = {
-            nickname: nickname,
-            room: roomCode,
-            score: 0
-        };
-
-        socket.join(roomCode);
-        
-        console.log(`[Socket] ${nickname} joined room [${roomCode}]`);
-
-        // Notify others in the room
-        io.to(roomCode).emit('user_joined', { 
-            nickname: nickname, 
-            users: getUsersInRoom(roomCode) 
-        });
-    });
-
-    // 2. Disconnect
-    socket.on('disconnect', () => {
-        const user = users[socket.id];
-        if (user) {
-            console.log(`[Socket] User disconnected: ${user.nickname} (${socket.id})`);
-            
-            io.to(user.room).emit('user_left', { nickname: user.nickname });
-            
-            // Remove user from memory
-            delete users[socket.id];
-        } else {
-            console.log(`[Socket] Unknown user disconnected: ${socket.id}`);
-        }
-    });
-});
-
-// -------------------- Server Start --------------------
-server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
-
-// ... (기존 require 및 설정들) ...
-
-// [기존 코드 유지] generateRoomCode 함수 ...
-
-// -------------------- [수정/추가된 API] --------------------
-
-// 1. [신규] 방 코드 미리 생성 (대기실 입장용)
 app.get('/generate-code', (req, res) => {
-    let roomCode;
-    do {
-        roomCode = generateRoomCode();
-    } while (rooms[roomCode]);
-
-    // 빈 방 생성 (설정은 나중에 덮어씌움)
+    const roomCode = getUniqueRoomCode();
     rooms[roomCode] = {
-        rounds: 5, time: 30, // 기본값
-        players: [],
-        inGame: false
+        players: [], inGame: false, rounds: 5, time: 30, hint: 'off',
+        skipVoteRatio: 'overHalf', chatMode: 'separated', customList: [],
+        originalPool: [], activeQueue: [],  
+        currentRound: 0, currentQuestion: null, timer: null, timeLeft: 0,
+        deleteTimer: null, skipVotes: new Set()
     };
-
     res.json({ roomCode });
 });
 
-// 2. [수정] 게임 시작 (설정 저장 및 게임 시작 신호)
 app.post('/update-room-settings', (req, res) => {
     const { roomCode, rounds, time, hint, skipVoteRatio, chatMode, customList } = req.body;
+    if (!rooms[roomCode]) return res.json({ success: false, message: "방이 존재하지 않습니다." });
+    const room = rooms[roomCode];
 
-    if (!rooms[roomCode]) {
-        return res.json({ success: false, message: "방이 존재하지 않습니다." });
+    let validCustom = [];
+    if (Array.isArray(customList)) {
+        validCustom = customList.filter(item => {
+            if (!item.link || typeof item.link !== 'string' || !item.link.includes('youtu')) return false;
+            if (item.link.includes('example')) return false;
+            if (item.link.includes('?')) item.link = item.link.split('?')[0];
+            if (item.link.includes('&')) item.link = item.link.split('&')[0];
+            const isAnswerValid = item.answer && item.answer.trim() !== "";
+            return isAnswerValid;
+        });
     }
 
-    // 설정 덮어쓰기
-    rooms[roomCode].rounds = rounds;
-    rooms[roomCode].time = time;
-    rooms[roomCode].hint = hint;
-    rooms[roomCode].skipVoteRatio = skipVoteRatio;
-    rooms[roomCode].chatMode = chatMode;
-    rooms[roomCode].customList = customList || [];
-    rooms[roomCode].inGame = true; // 게임 시작 플래그
+    if (validCustom.length > 0) { room.customList = validCustom; room.originalPool = validCustom; } 
+    else { room.customList = []; room.originalPool = defaultQuestions; }
+    
+    room.activeQueue = shuffle(room.originalPool);
+    room.rounds = parseInt(rounds) || 5;
+    room.time = parseInt(time) || 30;
+    room.hint = hint;
+    room.skipVoteRatio = skipVoteRatio;
+    room.chatMode = chatMode;
+    room.inGame = true;
+    room.currentRound = 0;
+    room.players.forEach(p => { p.score = 0; p.isCorrect = false; });
 
-    console.log(`[API] Game Started in Room ${roomCode}`);
-
-    // ★ 방에 있는 모든 사람에게 '게임 시작했다'고 알림 (소켓)
+    console.log(`[GAME START] Room: ${roomCode}`);
     io.to(roomCode).emit('game_started');
+    setTimeout(() => startNextRound(roomCode), 3000);
 
     res.json({ success: true });
 });
 
-// ... (기존 Socket.io 로직 유지) ...
-// 단, socket.on('join_room') 부분은 그대로 둬도 잘 작동합니다.
+function startNextRound(roomCode) {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    if (room.currentRound >= room.rounds) { endGame(roomCode); return; }
+
+    room.currentRound++;
+    room.timeLeft = room.time;
+    room.skipVotes.clear();
+    room.players.forEach(p => p.isCorrect = false);
+
+    // ★ [수정] 시작할 때 필요한 스킵 인원수 계산해서 보냄
+    const requiredSkip = getSkipThreshold(room);
+    io.to(roomCode).emit('skip_update', { current: 0, required: requiredSkip });
+
+    if (room.activeQueue.length === 0) {
+        room.activeQueue = shuffle(room.originalPool);
+    }
+
+    const question = room.activeQueue.pop();
+    room.currentQuestion = question;
+
+    console.log(`🎵 [Round ${room.currentRound}] 정답: ${question.answer}`);
+    
+    io.to(roomCode).emit('round_start', {
+        round: room.currentRound, totalRounds: room.rounds,
+        link: question.link, startTime: question.startTime,
+        hint: room.hint === 'on' ? question.hint : null,
+        timeLimit: room.time,
+        requiredSkip: requiredSkip // ★ 초기 버튼 텍스트용 데이터
+    });
+
+    if (room.timer) clearInterval(room.timer);
+    room.timer = setInterval(() => {
+        room.timeLeft--;
+        io.to(roomCode).emit('timer_update', room.timeLeft);
+        if (room.timeLeft <= 0) endRound(roomCode, "⏰ 시간 초과!");
+    }, 1000);
+}
+
+function getSkipThreshold(room) {
+    if (room.skipVoteRatio === 'all') return room.players.length;
+    if (room.skipVoteRatio === 'overHalf') return Math.ceil(room.players.length / 2);
+    return 9999;
+}
+
+function endRound(roomCode, reason) {
+    const room = rooms[roomCode];
+    if(!room) return;
+    clearInterval(room.timer);
+    
+    io.to(roomCode).emit('round_end', {
+        reason: reason, 
+        answer: room.currentQuestion.answer,
+        scores: room.players.map(p => ({ nickname: p.nickname, score: p.score })),
+        link: room.currentQuestion.link,
+        startTime: room.currentQuestion.startTime
+    });
+
+    setTimeout(() => startNextRound(roomCode), 5000);
+}
+
+function endGame(roomCode) {
+    const room = rooms[roomCode];
+    if(!room) return;
+    room.inGame = false;
+    const sorted = room.players.sort((a, b) => b.score - a.score);
+    io.to(roomCode).emit('game_over', { ranks: sorted });
+}
+
+io.on('connection', (socket) => {
+    socket.on('join_room', (data) => {
+        const { nickname, roomCode } = data;
+        if (!rooms[roomCode]) { socket.emit('error_msg', "존재하지 않는 방입니다."); return; }
+        
+        socket.join(roomCode);
+        socket.nickname = nickname;
+        socket.roomCode = roomCode;
+
+        if (rooms[roomCode].deleteTimer) {
+            clearTimeout(rooms[roomCode].deleteTimer);
+            rooms[roomCode].deleteTimer = null;
+        }
+
+        if(!rooms[roomCode].players.find(p => p.id === socket.id)){
+            rooms[roomCode].players.push({ id: socket.id, nickname, score: 0, isCorrect: false });
+        }
+        io.to(roomCode).emit('user_joined', { users: rooms[roomCode].players.map(p => p.nickname) });
+
+        if (rooms[roomCode].inGame) {
+            socket.emit('game_started');
+            if (rooms[roomCode].currentQuestion) {
+                const q = rooms[roomCode].currentQuestion;
+                // 중간 입장 시에도 필요한 스킵 정보 전송
+                const requiredSkip = getSkipThreshold(rooms[roomCode]);
+                socket.emit('round_start', {
+                    round: rooms[roomCode].currentRound, totalRounds: rooms[roomCode].rounds,
+                    link: q.link, startTime: q.startTime,
+                    hint: rooms[roomCode].hint === 'on' ? q.hint : null,
+                    timeLimit: rooms[roomCode].time,
+                    requiredSkip: requiredSkip
+                });
+                socket.emit('skip_update', { current: rooms[roomCode].skipVotes.size, required: requiredSkip });
+            }
+        }
+    });
+
+    socket.on('update_settings', (data) => socket.to(data.roomCode).emit('settings_changed', data));
+
+    socket.on('vote_skip', () => {
+        const room = rooms[socket.roomCode];
+        if (!room || !room.inGame || room.skipVoteRatio === 'noSkip') return;
+        if (room.skipVotes.has(socket.id)) return;
+
+        room.skipVotes.add(socket.id);
+        const threshold = getSkipThreshold(room);
+        
+        io.to(socket.roomCode).emit('skip_update', { current: room.skipVotes.size, required: threshold });
+        
+        // ★ [추가] 누가 스킵 눌렀는지 알림
+        io.to(socket.roomCode).emit('chat_message', { 
+            nickname: 'System', 
+            msg: `${socket.nickname}님이 스킵 투표를 했습니다.`, 
+            type: 'system' 
+        });
+
+        if (room.skipVotes.size >= threshold) {
+            endRound(socket.roomCode, "⏭️ 투표로 스킵되었습니다!");
+        }
+    });
+
+    socket.on('send_chat', (msg) => {
+        const room = rooms[socket.roomCode];
+        if (!room) return;
+        
+        if (!room.inGame) {
+            io.to(socket.roomCode).emit('chat_message', { nickname: socket.nickname, msg: msg, type: 'chat' });
+            return;
+        }
+
+        const player = room.players.find(p => p.id === socket.id);
+        if (!player) return;
+
+        if (player.isCorrect) {
+            if (room.chatMode === 'separated') {
+                room.players.forEach(p => {
+                    if (p.isCorrect) io.to(p.id).emit('chat_message', { nickname: socket.nickname, msg: msg, type: 'chat_gray' });
+                });
+                return;
+            }
+            if (room.chatMode === 'censored') {
+                const correctAnswers = room.currentQuestion.answer.split(',').map(a => a.trim());
+                let censoredMsg = msg;
+                correctAnswers.forEach(ans => {
+                    const regex = new RegExp(ans, 'gi');
+                    if (regex.test(censoredMsg)) censoredMsg = censoredMsg.replace(regex, '***');
+                });
+                room.players.forEach(p => {
+                    if (p.isCorrect) io.to(p.id).emit('chat_message', { nickname: socket.nickname, msg: msg, type: 'chat_gray' });
+                    else io.to(p.id).emit('chat_message', { nickname: socket.nickname, msg: censoredMsg, type: 'chat' });
+                });
+                return;
+            }
+            return;
+        }
+
+        const correctAnswers = room.currentQuestion.answer.split(',').map(a => normalizeAnswer(a));
+        const userMsg = normalizeAnswer(msg);
+
+        if (correctAnswers.includes(userMsg)) {
+            player.isCorrect = true;
+            player.score += (room.timeLeft * 10);
+            io.to(socket.roomCode).emit('correct_answer', { nickname: socket.nickname });
+            io.to(socket.roomCode).emit('update_score', room.players.map(p => ({ nickname: p.nickname, score: p.score })));
+            socket.emit('chat_message', { nickname: 'System', msg: '정답입니다! (이제 정답자 채팅이 활성화됩니다)', type: 'system_good' });
+            if (room.players.every(p => p.isCorrect)) endRound(socket.roomCode, "🎉 모두 정답!");
+        } else {
+            io.to(socket.roomCode).emit('chat_message', { nickname: socket.nickname, msg: msg, type: 'chat' });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        if(socket.roomCode && rooms[socket.roomCode]) {
+            const room = rooms[socket.roomCode];
+            room.players = room.players.filter(p => p.id !== socket.id);
+            room.skipVotes.delete(socket.id);
+            io.to(socket.roomCode).emit('user_left', { nickname: socket.nickname });
+            if (room.inGame) io.to(socket.roomCode).emit('skip_update', { current: room.skipVotes.size, required: getSkipThreshold(room) });
+            if (room.players.length === 0) {
+                room.deleteTimer = setTimeout(() => { delete rooms[socket.roomCode]; console.log(`🗑️ Deleted room ${socket.roomCode}`); }, 10000); 
+            }
+        }
+    });
+});
+
+const PORT = 3000;
+http.listen(PORT, () => { console.log(`Server running on http://localhost:${PORT}`); });
