@@ -27,14 +27,13 @@
         .input-style { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
         .textarea-style { width: 90%; height: 250px; padding: 10px; margin: 10px auto; display: block; }
         
-        button { cursor: pointer; border-radius: 4px; border: 1px solid #999; padding: 8px 15px; margin: 5px; }
+        button { cursor: pointer; border-radius: 4px; border: 1px solid #999; padding: 8px 15px; margin: 5px; font-size: 14px; }
         .start-btn { padding: 15px 50px; font-size: 24px; background-color: #e74c3c; color: white; border: none; font-weight: bold; }
         .start-btn:disabled { background-color: #ccc; cursor: not-allowed; } 
         
         .file-btn { background-color: #2196F3; color: white; border: none; }
         .copy-btn { background-color: #9C27B0; color: white; border: none; }
 
-        /* ★ [추가] 설정 버튼 및 모달 스타일 */
         #settingsBtn { position: absolute; top: 15px; right: 320px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; transition: background 0.2s; }
         #settingsBtn:hover { background: rgba(0,0,0,0.8); }
         #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 400; justify-content: center; align-items: center; }
@@ -146,18 +145,29 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // ★ [설정 로직]
+        // 1. 초기 변수 설정
+        const socket = io({ transports: ['websocket'] });
+        let currentRoomCode = null;
+        let myNickname = sessionStorage.getItem("nickname");
+        // ★ const 대신 let을 사용하여 권한 변경 가능하게 설정
+        let isHost = sessionStorage.getItem("isHost") === "true"; 
         let globalVolume = localStorage.getItem('gameVolume') || 50;
-        
+
+        const defaultTemplate = [
+            { "link": "https://youtu.be/example1", "startTime": "0", "answer": "정답1", "hint": "힌트1" },
+            { "link": "https://youtu.be/example2", "startTime": "30", "answer": "정답2", "hint": "힌트2" }
+        ];
+
         window.onload = function() {
-            // 저장된 볼륨 불러와서 슬라이더 세팅
+            if(!myNickname) { alert("로그인 정보가 없습니다."); location.href='/'; return; }
+            
+            // 볼륨 UI 초기화
             document.getElementById('volumeSlider').value = globalVolume;
             document.getElementById('volumeValue').innerText = globalVolume;
 
-            // 기존 로직 실행
-            if(!myNickname) { alert("로그인 필요"); location.href='/'; return; }
             setupUI();
 
+            // 방장인 경우 세션에서 커스텀 데이터 불러오기
             if (isHost) {
                 const savedData = sessionStorage.getItem("customProblems");
                 const editor = document.getElementById('jsonEditor');
@@ -168,6 +178,7 @@
                 }
             }
 
+            // URL 파라미터 확인 및 입장 처리
             const params = new URLSearchParams(window.location.search);
             if (params.get('room')) {
                 currentRoomCode = params.get('room');
@@ -175,7 +186,6 @@
             } else if(isHost) {
                 fetch('/generate-code').then(res=>res.json()).then(data => {
                     currentRoomCode = data.roomCode;
-                    // 새로고침 대비
                     history.pushState(null, null, `?room=${currentRoomCode}`);
                     joinRoomProcess();
                 });
@@ -184,33 +194,17 @@
             }
         };
 
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
-        
-        function saveVolume(val) {
-            globalVolume = val;
-            document.getElementById('volumeValue').innerText = val;
-            localStorage.setItem('gameVolume', val); // 로컬 스토리지 저장
-        }
-
-        // --- 기존 로직 ---
-        const socket = io({ transports: ['websocket'] });
-        let currentRoomCode = null;
-        let myNickname = sessionStorage.getItem("nickname");
-        const isHost = sessionStorage.getItem("isHost") === "true"; 
-
-        const defaultTemplate = [
-            { "link": "https://youtu.be/example1", "startTime": "0", "answer": "정답1", "hint": "힌트1" },
-            { "link": "https://youtu.be/example2", "startTime": "30", "answer": "정답2", "hint": "힌트2" }
-        ];
-
         function joinRoomProcess() {
             document.getElementById('roomCodeDisplay').innerText = currentRoomCode;
             socket.emit('join_room', { nickname: myNickname, roomCode: currentRoomCode });
         }
 
+        // --- 소켓 이벤트 리스너 ---
+
         socket.on('error_msg', (msg) => { alert(msg); location.href='/'; });
+
         socket.on('user_joined', (data) => updateUserList(data.users));
+
         socket.on('settings_changed', (data) => {
             if (isHost) return; 
             const el = document.getElementById(data.type);
@@ -219,7 +213,9 @@
                 if(data.type === 'roundsSelect') toggleRoundInput(el);
             }
         });
+
         socket.on('game_started', () => { location.href = `/inGame?room=${currentRoomCode}`; });
+
         socket.on('chat_message', (data) => {
             const list = document.getElementById('chatList');
             const li = document.createElement('li');
@@ -228,15 +224,40 @@
             list.scrollTop = list.scrollHeight;
         });
 
+        // ★ 방장 인계 이벤트 수신
+        socket.on('change_host', (data) => { 
+            if(socket.id === data.newHostId) { 
+                alert("👑 방장이 되었습니다! 이제 게임 설정을 변경하고 시작할 수 있습니다."); 
+                isHost = true; 
+                sessionStorage.setItem("isHost", "true"); 
+                setupUI(); 
+            } 
+        });
+
+        // --- UI 및 기능 함수 ---
+
         function setupUI() {
-            if (!isHost) {
+            const startBtn = document.getElementById('startBtn');
+            const guestMsg = document.getElementById('guestMsg');
+            const hostBtns = document.getElementById('hostOnlyButtons');
+            const toggleBtn = document.getElementById('toggleBtn');
+
+            if (isHost) {
+                document.querySelectorAll('select, input, textarea').forEach(el => {
+                    el.disabled = false;
+                });
+                startBtn.style.display = 'inline-block';
+                guestMsg.style.display = 'none';
+                hostBtns.style.display = 'block';
+                toggleBtn.innerText = "커스텀 문제 확인";
+            } else {
                 document.querySelectorAll('select, input, textarea').forEach(el => {
                     if(el.id !== 'chatInput') el.disabled = true;
                 });
-                document.getElementById('startBtn').style.display = 'none';
-                document.getElementById('guestMsg').style.display = 'block';
-                document.getElementById('hostOnlyButtons').style.display = 'none';
-                document.getElementById('toggleBtn').innerText = "커스텀 문제 보기 (수정 불가)";
+                startBtn.style.display = 'none';
+                guestMsg.style.display = 'block';
+                hostBtns.style.display = 'none';
+                toggleBtn.innerText = "커스텀 문제 보기 (수정 불가)";
             }
         }
 
@@ -271,13 +292,6 @@
             });
         }
 
-        document.getElementById('chatInput').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter' && e.target.value.trim()) {
-                socket.emit('send_chat', e.target.value.trim());
-                e.target.value = '';
-            }
-        });
-
         function updateUserList(users) {
             const list = document.getElementById('userList');
             document.getElementById('userCount').innerText = `(${users.length})`;
@@ -290,57 +304,77 @@
             });
         }
 
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
+        function saveVolume(val) {
+            globalVolume = val;
+            document.getElementById('volumeValue').innerText = val;
+            localStorage.setItem('gameVolume', val);
+        }
+
         function copyRoomCode() { navigator.clipboard.writeText(currentRoomCode); alert("복사완료"); }
         
         function toggleView() { 
             const basic = document.getElementById('basicSettings');
             const custom = document.getElementById('customViewer');
             const btn = document.getElementById('toggleBtn');
-            if(custom.style.display==='none'){ 
-                custom.style.display='block'; basic.style.display='none'; 
+            if(custom.style.display === 'none'){ 
+                custom.style.display = 'block'; basic.style.display = 'none'; 
                 btn.innerText = "기본 설정으로 돌아가기";
             } else { 
-                custom.style.display='none'; basic.style.display='block'; 
+                custom.style.display = 'none'; basic.style.display = 'block'; 
                 btn.innerText = isHost ? "커스텀 문제 확인" : "커스텀 문제 보기 (수정 불가)";
             }
         }
 
         async function copyJsonToClipboard() {
-            await navigator.clipboard.writeText(document.getElementById('jsonEditor').value);
+            const editor = document.getElementById('jsonEditor');
+            await navigator.clipboard.writeText(editor.value);
             alert("커스텀 문제가 클립보드에 복사되었습니다!");
         }
 
         function importFromFile(input) {
             const reader = new FileReader();
             reader.onload = e => {
-                const val = JSON.stringify(JSON.parse(e.target.result),null,2);
-                document.getElementById('jsonEditor').value = val;
-                syncSetting('jsonEditor', val);
+                try {
+                    const val = JSON.stringify(JSON.parse(e.target.result), null, 2);
+                    document.getElementById('jsonEditor').value = val;
+                    syncSetting('jsonEditor', val);
+                } catch(err) { alert("JSON 파일 형식이 아닙니다."); }
             };
             reader.readAsText(input.files[0]);
         }
 
         function toggleRoundInput(sel) {
-            if(sel.value==='custom') { 
-                sel.style.display='none'; 
-                document.getElementById('customRoundArea').style.display='inline-block'; 
+            if(sel.value === 'custom') { 
+                sel.style.display = 'none'; 
+                document.getElementById('customRoundArea').style.display = 'inline-block'; 
             }
         }
+
         function resetRoundInput() {
-            document.getElementById('customRoundArea').style.display='none';
+            document.getElementById('customRoundArea').style.display = 'none';
             const sel = document.getElementById('roundsSelect');
-            sel.style.display='inline-block';
-            sel.value='25';
+            sel.style.display = 'inline-block';
+            sel.value = '25';
             syncSetting('roundsSelect', '25');
         }
 
         async function exportToJson() { 
-            const blob = new Blob([document.getElementById('jsonEditor').value], {type: "application/json"});
+            const data = document.getElementById('jsonEditor').value;
+            const blob = new Blob([data], {type: "application/json"});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url; a.download = 'game_data.json';
             a.click(); URL.revokeObjectURL(url);
         }
+
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter' && e.target.value.trim()) {
+                socket.emit('send_chat', e.target.value.trim());
+                e.target.value = '';
+            }
+        });
     </script>
 </body>
 </html>
