@@ -13,6 +13,7 @@ const MAX_PLAYERS = 12;
 app.get('/', (req, res) => res.sendFile(__dirname + '/public/index.html'));
 app.get('/room', (req, res) => res.sendFile(__dirname + '/public/room.html'));
 
+// 문제 데이터 검증 및 예시 데이터 필터링
 function validateQuestionPool(pool) {
     const targetArray = Array.isArray(pool) ? pool : (pool && pool.questions ? pool.questions : []);
     if (!Array.isArray(targetArray)) return [];
@@ -365,32 +366,6 @@ io.on('connection', (socket) => {
             io.to(targetId).emit('kicked');
             const targetSocket = io.sockets.sockets.get(targetId);
             if (targetSocket) targetSocket.leave(socket.roomCode);
-        }
-    });
-
-    // 방장 인계 요청 처리
-    socket.on('transfer_host', (targetId) => {
-        const room = rooms[socket.roomCode];
-        if (!room || room.hostId !== socket.id || targetId === socket.id) return;
-        const targetPlayer = room.players.find(p => p.id === targetId);
-        if (targetPlayer) {
-            room.hostId = targetPlayer.id;
-            room.hostNickname = targetPlayer.nickname;
-            io.to(socket.roomCode).emit('chat_message', { 
-                nickname: '시스템', 
-                msg: `방장이 ${targetPlayer.nickname}님으로 변경되었습니다.`, 
-                type: 'system' 
-            });
-            io.to(socket.roomCode).emit('change_host', { newHostId: room.hostId });
-            
-            // 유저 목록 갱신을 통해 UI 업데이트 유도
-            io.to(socket.roomCode).emit('user_joined', {
-                users: room.players.map(p => ({ id: p.id, nickname: p.nickname, status: p.status })),
-                currentCount: room.players.length,
-                maxCount: MAX_PLAYERS,
-                hostId: room.hostId,
-                inGame: room.inGame
-            });
         }
     });
 

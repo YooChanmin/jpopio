@@ -110,7 +110,7 @@
             font-weight: bold;
         }
 
-        /* 중앙 패널 */
+        /* 중앙 메인 패널 */
         .main-content {
             flex-grow: 1;
             background-color: #f0f2f5;
@@ -159,7 +159,6 @@
             cursor: not-allowed;
         }
 
-        /* 퇴장 및 인계 버튼 스타일 통합 */
         .kick-btn {
             padding: 2px 8px;
             background-color: #e74c3c;
@@ -168,22 +167,12 @@
             font-size: 11px;
             border-radius: 3px;
             cursor: pointer;
-            margin-left: 5px;
+            margin-left: 8px;
         }
 
-        .transfer-btn {
-            padding: 2px 8px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            font-size: 11px;
-            border-radius: 3px;
-            cursor: pointer;
-            margin-left: 5px;
+        .kick-btn:hover {
+            background-color: #c0392b;
         }
-
-        .kick-btn:hover { background-color: #c0392b; }
-        .transfer-btn:hover { background-color: #2980b9; }
 
         .game-view {
             display: none;
@@ -278,6 +267,7 @@
         .rank-2 { color: #bdc3c7; font-size: 65px !important; }
         .rank-3 { color: #cd7f32; font-size: 55px !important; }
 
+        /* 우측 채팅 패널 */
         .right-panel {
             width: 300px;
             background-color: #2c3e50;
@@ -311,12 +301,33 @@
             word-wrap: break-word;
         }
 
-        .chat-me { color: #ddd !important; }
-        .chat-me b { color: #2ecc71 !important; }
-        .chat-system { color: #f39c12 !important; font-weight: bold; text-align: center; }
-        .chat-correct { color: #2ecc71 !important; font-weight: bold; text-align: center; }
-        .chat-gray { color: #888 !important; }
-        .chat-gray-word { color: #888; }
+        .chat-me {
+            color: #ddd !important;
+        }
+
+        .chat-me b {
+            color: #2ecc71 !important;
+        }
+
+        .chat-system {
+            color: #f39c12 !important;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chat-correct {
+            color: #2ecc71 !important;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chat-gray {
+            color: #888 !important;
+        }
+
+        .chat-gray-word {
+            color: #888;
+        }
 
         .chat-input-bar {
             padding: 10px;
@@ -335,6 +346,7 @@
             color: #333;
         }
 
+        /* 최상단 제어 버튼 그룹 */
         .control-btns-wrapper {
             position: fixed;
             top: 10px;
@@ -357,9 +369,17 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
 
-        #settingsBtn { background: rgba(52, 73, 94, 0.9); border: 1px solid #7f8c8d; }
-        #skipBtn { background-color: #3498db; display: none; }
+        #settingsBtn {
+            background: rgba(52, 73, 94, 0.9);
+            border: 1px solid #7f8c8d;
+        }
 
+        #skipBtn {
+            background-color: #3498db;
+            display: none;
+        }
+
+        /* 환경설정 모달 */
         #settingsModal {
             display: none;
             position: fixed;
@@ -613,6 +633,7 @@
             document.getElementById('gameResultView').style.display = 'flex';
             document.getElementById('mainSection').style.backgroundColor = '#2c3e50';
 
+            // 결과 화면 전환 시 유튜브 영상 정지 (추가됨)
             if (isPlayerReady && player && player.stopVideo) {
                 player.stopVideo();
             }
@@ -688,21 +709,14 @@
             list.innerHTML = data.users.map(u => {
                 const isMe = u.nickname === myNickname;
                 const isAfk = u.status !== 'lobby';
-                const canManage = isHost && !isMe;
-                
-                // 퇴장 및 인계 버튼 포함
-                const manageBtns = canManage ? 
-                    `<div style="display:inline-block;">
-                        <button class="transfer-btn" onclick="transferHost('${u.id}')">인계</button>
-                        <button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>
-                     </div>` : '';
-
+                const canKick = isHost && !isMe;
+                const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>` : '';
                 return `
                     <li>
                         <span class="${isMe ? 'me' : ''} ${isAfk ? 'status-afk' : ''}">
                             ${(u.id === data.hostId ? "👑 " : "") + u.nickname}
                         </span>
-                        ${manageBtns}
+                        ${kickBtn}
                     </li>`;
             }).join('');
 
@@ -791,11 +805,6 @@
                 sessionStorage.setItem("isHost", "true");
                 setupUI();
                 alert("👑 방장이 되었습니다!");
-            } else {
-                // 자신이 방장이 아닌 경우 처리
-                isHost = false;
-                sessionStorage.setItem("isHost", "false");
-                setupUI();
             }
         });
 
@@ -809,16 +818,9 @@
             location.href = '/';
         });
 
-        // 기능 함수
         function requestBackToLobby() {
             socket.emit('back_to_lobby');
             switchToLobbyView();
-        }
-
-        function transferHost(id) {
-            if (confirm("해당 플레이어에게 방장 권한을 넘기겠습니까?")) {
-                socket.emit('transfer_host', id);
-            }
         }
 
         function startGame() {
@@ -871,18 +873,11 @@
 
             board.innerHTML = players.sort((a, b) => b.score - a.score).map((p, i) => {
                 const isMe = p.nickname === myNickname;
-                const canManage = isHost && !isMe;
-                
-                // 인게임 점수판에서도 인계/퇴장 버튼 통일해서 추가
-                const manageBtns = canManage ? 
-                    `<div style="display:inline-block; margin-left:10px;">
-                        <button class="transfer-btn" onclick="transferHost('${p.id}')">인계</button>
-                        <button class="kick-btn" onclick="kickPlayer('${p.id}')">퇴장</button>
-                    </div>` : '';
-
+                const canKick = isHost && !isMe;
+                const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${p.id}')">퇴장</button>` : '';
                 return `
                     <div class="player-row ${isMe ? 'me' : ''}">
-                        <span>${i + 1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${manageBtns}</span>
+                        <span>${i + 1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${kickBtn}</span>
                         <span>${p.score || 0}</span>
                     </div>`;
             }).join('');
