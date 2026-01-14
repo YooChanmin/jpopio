@@ -32,7 +32,7 @@
         
         #customListDisplay { list-style: none; padding: 0; margin-top: 10px; text-align: left; max-height: 400px; overflow-y: auto; border-top: 2px solid #eee; }
         #customListDisplay li { background: #fff; margin: 5px 0; padding: 10px; border: 1px solid #eee; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-        #customListDisplay li .item-content { flex-grow: 1; margin-right: 10px; word-break: break-all; } /* 링크 줄바꿈 허용 */
+        #customListDisplay li .item-content { flex-grow: 1; margin-right: 10px; word-break: break-all; }
         #customListDisplay li .item-meta { font-size: 12px; color: #777; margin-top: 4px; }
         
         .textarea-style { width: 100%; height: 300px; padding: 10px; margin-top: 10px; border: 1px solid #333; background: #f8f8f8; font-family: monospace; box-sizing: border-box; }
@@ -41,6 +41,8 @@
         #settingsBtn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; }
         #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 400; justify-content: center; align-items: center; }
         .modal-content { background: white; color: black; padding: 25px; border-radius: 10px; width: 300px; text-align: center; border: 1px solid #ccc; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        
+        .submit-action-btn { padding: 10px 60px; color: white; border: none; font-weight: bold; border-radius: 4px; margin-top: 15px; font-size: 16px; width: 100%; max-width: 400px; }
     </style>
 </head>
 <body>
@@ -85,7 +87,7 @@
             <h3 style="margin-top:20px;">커스텀 문제 제작소</h3>
             <p style="font-size:12px; color:#666;">직접 만든 문제를 가지고 방을 만들 수 있습니다.</p>
 
-            <div style="margin-bottom: 10px;">
+            <div style="margin-bottom: 15px;">
                 <button class="file-btn" onclick="document.getElementById('fileInput').click()">📂 불러오기</button>
                 <button class="file-btn" onclick="exportToJson()">💾 저장하기</button>
                 <button id="copyBtn" class="copy-btn" onclick="copyToClipboard()" style="display: none;">📋 복사하기</button>
@@ -96,26 +98,26 @@
             <div id="listViewArea">
                 <div style="display: flex; gap: 5px; justify-content: center;">
                     <input type="text" id="ytLink" class="input-style" placeholder="YouTube 링크" style="width: 350px;">
-                    <input type="number" id="startTime" class="input-style" placeholder="시작(기본 0초)" style="width: 120px;">
+                    <input type="number" id="startTime" class="input-style" placeholder="시작 시간(기본 0초)" style="width: 150px;">
                 </div>
                 <div id="answersContainer" style="margin-top: 5px;">
                     <div class="answer-row">
-                        <input type="text" class="input-style answer-input" placeholder="정답 입력" style="width: 200px;">
+                        <input type="text" class="input-style answer-input" placeholder="정답 1" style="width: 200px;">
                         <button class="mini-btn" onclick="addAnswerField()">＋ 정답 추가</button>
                     </div>
                 </div>
                 <div style="margin-top: 5px;">
-                    <input type="text" id="hint" class="input-style" placeholder="힌트 (선택)" style="width: 320px;">
+                    <input type="text" id="hint" class="input-style" placeholder="힌트(생략 가능)" style="width: 320px;">
                 </div>
-                <div style="margin-top: 10px;">
-                    <button id="addItemBtn" style="padding: 10px 40px; background-color: #2196F3; color: white; border: none; font-weight: bold; border-radius: 4px;" onclick="addItemToList()">리스트에 추가</button>
-                </div>
+                
+                <button id="addItemBtn" class="submit-action-btn" style="background-color: #2196F3;" onclick="addItemToList()">리스트에 추가</button>
+                
                 <ul id="customListDisplay"></ul>
             </div>
 
             <div id="textViewArea" style="display: none;">
                 <textarea id="jsonEditor" class="textarea-style"></textarea>
-                <button class="toggle-mode-btn" onclick="applyTextToData()" style="width:100%; margin-top:5px;">⬇️ 리스트로 적용하기</button>
+                <button id="applyBtn" class="submit-action-btn" style="background-color: #FF9800;" onclick="applyTextToData()">⬇️ 리스트로 적용하기</button>
             </div>
         </div>
     </div>
@@ -124,6 +126,11 @@
         let globalVolume = localStorage.getItem('gameVolume') || 50;
         let customProblems = [];
         let editingIndex = -1;
+
+        const defaultTemplate = [
+            { "link": "https://youtu.be/example1", "startTime": "0", "answer": "정답1,정답2", "hint": "힌트(생략 가능)" },
+            { "link": "https://youtu.be/example2", "startTime": "30", "answer": "정답3", "hint": "" }
+        ];
 
         window.onload = function() {
             document.getElementById('volumeSlider').value = globalVolume;
@@ -176,11 +183,13 @@
             const copyBtn = document.getElementById('copyBtn');
 
             if (textArea.style.display === 'none') {
-                editor.value = JSON.stringify(customProblems, null, 2);
-                listArea.style.display = 'none'; textArea.style.display = 'block'; btn.innerText = "📋 리스트 보기 (취소)";
+                editor.value = JSON.stringify(customProblems.length > 0 ? customProblems : defaultTemplate, null, 2);
+                listArea.style.display = 'none'; textArea.style.display = 'block'; 
+                btn.innerText = "📋 리스트 보기 (취소)";
                 copyBtn.style.display = 'inline-block';
             } else {
-                listArea.style.display = 'block'; textArea.style.display = 'none'; btn.innerText = "📝 텍스트 편집";
+                listArea.style.display = 'block'; textArea.style.display = 'none'; 
+                btn.innerText = "📝 텍스트 편집";
                 copyBtn.style.display = 'none';
             }
         }
@@ -194,11 +203,21 @@
         }
 
         function addAnswerField(val = "") {
+            const container = document.getElementById('answersContainer');
+            const currentCount = container.querySelectorAll('.answer-input').length + 1;
             const div = document.createElement('div');
             div.className = 'answer-row';
-            div.innerHTML = `<input type="text" class="input-style answer-input" placeholder="추가 정답" style="width: 200px;" value="${val}">
-                             <button class="mini-btn" style="color:red;" onclick="this.parentElement.remove()">－ 삭제</button>`;
-            document.getElementById('answersContainer').appendChild(div);
+            div.innerHTML = `<input type="text" class="input-style answer-input" placeholder="정답 ${currentCount}" style="width: 200px;" value="${val}">
+                             <button class="mini-btn" style="color:red;" onclick="removeAnswerField(this)">－ 삭제</button>`;
+            container.appendChild(div);
+        }
+
+        function removeAnswerField(btn) {
+            btn.parentElement.remove();
+            const inputs = document.querySelectorAll('.answer-input');
+            inputs.forEach((input, index) => {
+                input.placeholder = `정답 ${index + 1}`;
+            });
         }
 
         function addItemToList(){
@@ -228,7 +247,7 @@
             document.getElementById('ytLink').value = ''; 
             document.getElementById('startTime').value = '';
             document.getElementById('hint').value = '';
-            document.getElementById('answersContainer').innerHTML = `<div class="answer-row"><input type="text" class="input-style answer-input" placeholder="정답 입력" style="width: 200px;"><button class="mini-btn" onclick="addAnswerField()">＋ 정답 추가</button></div>`;
+            document.getElementById('answersContainer').innerHTML = `<div class="answer-row"><input type="text" class="input-style answer-input" placeholder="정답 1" style="width: 200px;"><button class="mini-btn" onclick="addAnswerField()">＋ 정답 추가</button></div>`;
             document.getElementById('ytLink').focus();
         }
 
@@ -245,7 +264,7 @@
             answers.forEach((ans, i) => {
                 if(i === 0) {
                     container.innerHTML = `<div class="answer-row">
-                        <input type="text" class="input-style answer-input" placeholder="정답 입력" style="width: 200px;" value="${ans}">
+                        <input type="text" class="input-style answer-input" placeholder="정답 1" style="width: 200px;" value="${ans}">
                         <button class="mini-btn" onclick="addAnswerField()">＋ 정답 추가</button>
                     </div>`;
                 } else {
@@ -268,7 +287,7 @@
                     <div class="item-content">
                         <b>Q${index + 1}.</b> ${item.answer}
                         <div class="item-meta">
-                            시작: ${item.startTime}초 | 힌트: ${item.hint || '없음'} | 링크: ${item.link}
+                            시작 시간: ${item.startTime}초 | 힌트: ${item.hint || '없음'} | 링크: ${item.link}
                         </div>
                     </div>
                     <div style="display: flex; gap: 5px;">

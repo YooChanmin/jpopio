@@ -2,133 +2,95 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>whatsong.io - 플레이</title>
     <style>
         body { margin: 0; font-family: 'Nanum Gothic', sans-serif; background-color: #2c3e50; color: white; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* 왼쪽 패널 */
-        .left-panel { width: 250px; background-color: #34495e; padding: 20px; display: flex; flex-direction: column; border-right: 1px solid #222; }
+        .left-panel { width: 250px; background-color: #34495e; padding: 20px; display: flex; flex-direction: column; border-right: 1px solid #222; flex-shrink: 0; }
         .timer-box { font-size: 40px; font-weight: bold; color: #e74c3c; text-align: center; margin-bottom: 20px; background: #2c3e50; padding: 10px; border-radius: 10px; }
         .round-info { text-align: center; margin-bottom: 20px; color: #bdc3c7; }
         .score-board { flex-grow: 1; overflow-y: auto; }
-        .player-row { padding: 10px; border-bottom: 1px solid #7f8c8d; display: flex; justify-content: space-between; }
+        .player-row { padding: 10px; border-bottom: 1px solid #7f8c8d; display: flex; justify-content: space-between; align-items: center; }
         .player-row.me { color: #2ecc71; font-weight: bold; }
         
-        /* 중앙 영역 */
-        .main-area { flex-grow: 1; background-color: #2c3e50; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
-        #waitingScreen { position: absolute; width: 100%; height: 100%; background: #2c3e50; display: flex; justify-content: center; align-items: center; z-index: 100; }
-        #topStatus { font-size: 32px; font-weight: bold; color: #fff; margin-bottom: 20px; height: 40px; }
-        #youtube-container { width: 60%; max-width: 700px; aspect-ratio: 16 / 9; background: #000; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; opacity: 0; pointer-events: none; margin-bottom: 30px; flex-shrink: 0; }
+        .main-area { flex-grow: 1; background-color: #2c3e50; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; }
+        #waitingScreen { position: absolute; width: 100%; height: 100%; background: #2c3e50; display: flex; justify-content: center; align-items: center; z-index: 600; }
+        #youtube-container { width: 80%; max-width: 800px; aspect-ratio: 16 / 9; background: #000; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; opacity: 0; pointer-events: none; margin-bottom: 30px; }
         #youtube-container.show { opacity: 1; pointer-events: auto; }
         #player { width: 100%; height: 100%; }
         #answerDisplay { font-size: 50px; color: #f1c40f; font-weight: bold; display: none; margin-bottom:10px; }
-        #hintBox { font-size: 20px; color: #3498db; background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 20px; display: none; margin: 0 auto; width: fit-content; }
+        #hintBox { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 24px; color: #3498db; background: rgba(0,0,0,0.8); padding: 12px 30px; border-radius: 30px; display: none; z-index: 500; border: 1px solid #3498db; }
         
-        /* 텍스트 중앙 고정 스타일 */
-        #centerInstruction { 
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 40px; 
-            font-weight: bold; 
-            color: white; 
-            text-align: center;
-            width: 100%;
-            pointer-events: none;
-        }
-
-        /* 오른쪽 채팅 패널 */
-        .right-panel { width: 300px; background-color: #222; display: flex; flex-direction: column; border-left: 1px solid #444; z-index: 200; }
+        /* 중앙 안내 문구 강제 관리 */
+        #centerInstruction { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: bold; color: white; text-align: center; width: 100%; pointer-events: none; z-index: 400; }
+        
+        .right-panel { width: 300px; background-color: #222; display: flex; flex-direction: column; border-left: 1px solid #444; flex-shrink: 0; }
         .chat-header { padding: 15px; background: #333; text-align: center; font-weight: bold; }
         #chatList { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; background-color: #1a1a1a; }
-        #chatList li { padding: 4px 0; font-size: 14px; word-wrap: break-word; }
-        
-        .chat-system { color: #f1c40f; font-weight: bold; text-align: center; list-style: none; margin: 5px 0; }
-        .chat-system-good { color: #2ecc71; font-weight: bold; text-align: center; margin: 5px 0; }
-        .chat-correct { color: #2ecc71; font-weight: bold; background: rgba(46, 204, 113, 0.1); padding: 5px; border-radius: 5px; margin: 5px 0; text-align: center; list-style: none; }
-        
-        .chat-user { color: #ddd; } .chat-user b { color: white; }
-        .chat-gray { color: #95a5a6; } .chat-gray b { color: #7f8c8d; }
-        
+        #chatList li { padding: 4px 0; font-size: 14px; word-wrap: break-word; color: #ddd; }
+        .chat-correct { color: #2ecc71; font-weight: bold; text-align: center; }
         .input-bar { padding: 10px; background: #333; }
-        #chatInput { width: 100%; padding: 10px; border: none; border-radius: 4px; font-size: 14px; background: #eee; outline: none; box-sizing: border-box; }
+        #chatInput { width: 100%; padding: 10px; border: none; border-radius: 4px; font-size: 14px; background: #eee; outline: none; box-sizing: border-box; color: #333; }
         
-        #skipBtn { display: none; position: absolute; top: 60px; right: 320px; background-color: #95a5a6; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 300; }
-        #settingsBtn { position: absolute; top: 15px; right: 320px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; }
+        /* 버튼 위치: 채팅창 바로 왼쪽(310px) 상단 고정 */
+        .control-btns-wrapper { position: fixed; top: 10px; right: 310px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; align-items: flex-end; }
+        .control-btn { color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); width: auto; white-space: nowrap; }
+        #settingsBtn { background: rgba(52, 73, 94, 0.9); border: 1px solid #7f8c8d; }
+        #skipBtn { background-color: #3498db; }
+        #skipBtn:disabled { background-color: #555; cursor: not-allowed; }
 
-        #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 400; justify-content: center; align-items: center; }
-        .modal-content { background: #34495e; color: white; padding: 25px; border-radius: 10px; width: 300px; text-align: center; border: 1px solid #7f8c8d; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        input[type=range] { width: 100%; cursor: pointer; margin: 20px 0; }
-
-        #gameOverOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index: 300; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: #34495e; color: white; padding: 25px; border-radius: 10px; width: 280px; text-align: center; border: 1px solid #7f8c8d; }
     </style>
 </head>
 <body>
-
-    <button id="settingsBtn" onclick="openSettings()">⚙️ 환경설정</button>
-    <button id="skipBtn" onclick="voteSkip()">⏭️ 스킵 투표</button>
+    <div class="control-btns-wrapper">
+        <button id="settingsBtn" class="control-btn" onclick="openSettings()">⚙️ 환경설정</button>
+        <button id="skipBtn" class="control-btn" onclick="voteSkip()">⏭️ 스킵 투표</button>
+    </div>
 
     <div id="settingsModal" onclick="closeSettings(event)">
         <div class="modal-content">
             <h2 style="margin-top:0;">🔊 환경설정</h2>
             <div style="margin: 20px 0;">
-                <label for="volumeSlider">게임 볼륨: <span id="volumeValue">50</span>%</label><br>
-                <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)">
+                <label>게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)" style="width:100%;">
             </div>
-            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; cursor:pointer; background:#e74c3c; color:white; border:none; border-radius:5px;">닫기</button>
+            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">닫기</button>
         </div>
     </div>
 
+    <div id="hintBox">💡 힌트: <span id="hintText"></span></div>
     <div id="waitingScreen"><h1>🎮 곧 게임이 시작됩니다!</h1></div>
-
+    
     <div class="left-panel">
         <div class="timer-box" id="timerDisplay">--</div>
         <div class="round-info" id="roundDisplay">준비 중</div>
         <h3>🏆 점수판</h3>
         <div class="score-board" id="scoreBoard"></div>
     </div>
-
+    
     <div class="main-area">
-        <div id="topStatus"></div>
         <div id="youtube-container"><div id="player"></div></div>
         <div id="answerDisplay">정답: ???</div>
-        <div id="hintBox">💡 힌트: <span id="hintText"></span></div>
         <div id="centerInstruction">시작을 기다리고 있습니다...</div>
     </div>
-
+    
     <div class="right-panel">
         <div class="chat-header">💬 채팅 / 정답 입력</div>
         <ul id="chatList"></ul>
-        <div class="input-bar">
-            <input type="text" id="chatInput" placeholder="정답을 입력하세요..." autofocus>
-        </div>
-    </div>
-
-    <div id="gameOverOverlay">
-        <h1 style="color:white">🎮 게임 종료!</h1>
-        <div id="finalRanks"></div>
-        <button onclick="location.href='/createRoom?room='+roomCode" style="padding:15px; margin-top:20px; cursor:pointer; background:#3498db; color:white; border:none; border-radius:5px;">대기실로 돌아가기</button>
+        <div class="input-bar"><input type="text" id="chatInput" placeholder="정답 입력..." autofocus></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
-
     <script>
-        const socket = io({ transports: ['websocket'] });
+        const socket = io();
         const params = new URLSearchParams(window.location.search);
-        const roomCode = params.get('room');
-        const nickname = sessionStorage.getItem("nickname");
+        const roomCode = params.get('room'), nickname = sessionStorage.getItem("nickname");
         
-        let isHost = sessionStorage.getItem("isHost") === "true";
+        let player, isPlayerReady = false, isRoundEnded = false;
+        let currentRoundStartTime = 0, totalRoundTime = 0, pendingHint = null;
         let globalVolume = localStorage.getItem('gameVolume') || 50;
-        let player;
-
-        window.onload = function() {
-            document.getElementById('volumeSlider').value = globalVolume;
-            document.getElementById('volumeValue').innerText = globalVolume;
-        };
 
         function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
         function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
@@ -136,151 +98,94 @@
             globalVolume = val;
             document.getElementById('volumeValue').innerText = val;
             localStorage.setItem('gameVolume', val);
-            if(player && player.setVolume) player.setVolume(val);
+            if (isPlayerReady && player && player.setVolume) player.setVolume(val);
         }
 
-        socket.on('user_joined', (data) => {
-            updateScoreBoard(data.users.map(u => ({ nickname: u, score: 0 })));
-        });
-
-        socket.on('round_start', (data) => {
+        function updateUIForRound(data) {
+            isRoundEnded = false;
             document.getElementById('waitingScreen').style.display = 'none';
-            document.getElementById('roundDisplay').innerText = `Round ${data.round} / ${data.totalRounds}`;
+            // 중앙 안내 문구 강제 삭제
+            const inst = document.getElementById('centerInstruction');
+            if(inst) inst.style.display = 'none';
             
-            // 텍스트 출력 및 고정
-            const instr = document.getElementById('centerInstruction');
-            instr.innerText = "🎶 노래를 듣고 정답을 맞히세요!";
-            instr.style.display = 'block';
-
             document.getElementById('youtube-container').classList.remove('show');
             document.getElementById('answerDisplay').style.display = 'none';
-            document.getElementById('topStatus').innerText = "";
             document.getElementById('hintBox').style.display = 'none';
+            
+            document.getElementById('roundDisplay').innerText = `Round ${data.round} / ${data.totalRounds}`;
+            pendingHint = data.hint; totalRoundTime = data.timeLimit;
+            currentRoundStartTime = Number(data.startTime);
+            document.getElementById('skipBtn').disabled = false;
 
-            const skipBtn = document.getElementById('skipBtn');
-            if (data.requiredSkip >= 9999) {
-                skipBtn.style.display = 'none';
-            } else {
-                skipBtn.style.display = 'block';
-                skipBtn.disabled = false;
-                skipBtn.classList.remove('voted');
-                skipBtn.innerText = `⏭️ 스킵 투표 (0/${data.requiredSkip})`;
-            }
-
-            if (player && player.loadVideoById) {
-                const vidId = extractVideoID(data.link);
-                player.loadVideoById({ videoId: vidId, startSeconds: Number(data.startTime) });
+            if (isPlayerReady && player && player.loadVideoById) {
+                player.loadVideoById({ videoId: extractVideoID(data.link), startSeconds: currentRoundStartTime });
                 player.setVolume(globalVolume);
             }
-        });
+        }
 
+        socket.on('sync_game_state', (data) => updateUIForRound(data));
+        socket.on('round_start', (data) => updateUIForRound(data));
         socket.on('timer_update', (timeLeft) => {
             document.getElementById('timerDisplay').innerText = timeLeft;
-        });
-
-        socket.on('chat_message', (data) => {
-            const list = document.getElementById('chatList');
-            const li = document.createElement('li');
-            if (data.type === 'system') li.className = 'chat-system';
-            else if (data.type === 'system_good') li.className = 'chat-system-good';
-            else if (data.type === 'chat_gray') li.className = 'chat-gray';
-            else li.className = 'chat-user';
-            
-            li.innerHTML = data.nickname ? `<b>${data.nickname}:</b> ${data.msg}` : data.msg;
-            list.appendChild(li);
-            list.scrollTop = list.scrollHeight;
-        });
-
-        socket.on('correct_answer', (data) => {
-            const list = document.getElementById('chatList');
-            const li = document.createElement('li');
-            li.className = 'chat-correct';
-            li.innerText = `🎉 ${data.nickname}님이 정답을 맞췄습니다!`;
-            list.appendChild(li);
-            list.scrollTop = list.scrollHeight;
+            if (pendingHint && timeLeft <= (totalRoundTime / 2)) {
+                document.getElementById('hintText').innerText = pendingHint;
+                document.getElementById('hintBox').style.display = 'block';
+                pendingHint = null;
+            }
         });
 
         socket.on('round_end', (data) => {
+            isRoundEnded = true;
             document.getElementById('centerInstruction').style.display = 'none';
             document.getElementById('youtube-container').classList.add('show');
-            document.getElementById('topStatus').innerText = data.reason;
-            
-            const mainAnswer = data.answer.split(',')[0].trim();
-            document.getElementById('answerDisplay').innerText = `정답: ${mainAnswer}`;
+            document.getElementById('answerDisplay').innerText = `정답: ${data.answer.split(',')[0]}`;
             document.getElementById('answerDisplay').style.display = 'block';
-            
-            updateScoreBoard(data.scores);
+            document.getElementById('skipBtn').disabled = true;
+            if (isPlayerReady && player && player.seekTo) player.seekTo(currentRoundStartTime, true);
+            updateScoreBoard(data.scores, data.hostId);
         });
 
-        socket.on('skip_update', (data) => {
-            const btn = document.getElementById('skipBtn');
-            const prefix = btn.classList.contains('voted') ? "투표 완료" : "⏭️ 스킵 투표";
-            btn.innerText = `${prefix} (${data.current}/${data.required})`;
-        });
+        socket.on('user_joined', (data) => updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId));
+        socket.on('update_score', (data) => updateScoreBoard(data.players, data.hostId));
 
-        socket.on('update_score', (players) => { updateScoreBoard(players); });
-
-        socket.on('change_host', (data) => {
-            if (socket.id === data.newHostId) {
-                isHost = true;
-                sessionStorage.setItem("isHost", "true");
-                const list = document.getElementById('chatList');
-                const li = document.createElement('li');
-                li.className = 'chat-system';
-                li.innerText = "👑 당신이 새로운 방장이 되었습니다.";
-                list.appendChild(li);
-                list.scrollTop = list.scrollHeight;
-            }
-        });
-
-        socket.on('game_over', (data) => {
-            document.getElementById('gameOverOverlay').style.display = 'flex';
-            document.getElementById('finalRanks').innerHTML = data.ranks.map((p, i) => 
-                `<div style="font-size: ${i===0?'40px':'20px'}; color: ${i===0?'#f1c40f':'#fff'}">
-                    ${i+1}등: ${p.nickname} (${p.score}점)
-                </div>`
-            ).join('');
-        });
-
-        if (roomCode && nickname) { socket.emit('join_room', { nickname, roomCode }); } 
-        else { location.href = '/'; }
-
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                height: '100%', width: '100%', videoId: '',
-                playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'rel': 0 },
-                events: { 'onReady': (e) => e.target.setVolume(globalVolume) }
-            });
-        }
-
-        function voteSkip() {
-            socket.emit('vote_skip');
-            const btn = document.getElementById('skipBtn');
-            btn.classList.add('voted');
-            btn.disabled = true;
-        }
-
-        function updateScoreBoard(players) {
+        function updateScoreBoard(players, hostId) {
             const board = document.getElementById('scoreBoard');
-            board.innerHTML = players.sort((a, b) => b.score - a.score).map(p => `
+            board.innerHTML = players.sort((a, b) => b.score - a.score).map((p, i) => `
                 <div class="player-row ${p.nickname === nickname ? 'me' : ''}">
-                    <span>${p.nickname}</span>
+                    <span>${i + 1}. ${p.id === hostId ? '👑 ' : ''}${p.nickname}</span>
                     <span>${p.score}</span>
                 </div>
             `).join('');
         }
 
-        document.getElementById('chatInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const msg = e.target.value.trim();
-                if (msg) { socket.emit('send_chat', msg); e.target.value = ''; }
-            }
+        socket.on('chat_message', (data) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
+            document.getElementById('chatList').appendChild(li);
+            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
         });
 
-        function extractVideoID(url) {
-            const match = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/);
-            return (match && match[7].length == 11) ? match[7] : false;
+        socket.on('correct_answer', (data) => {
+            const li = document.createElement('li');
+            li.className = 'chat-correct';
+            li.innerText = `🎉 ${data.nickname}님 정답!`;
+            document.getElementById('chatList').appendChild(li);
+            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
+        });
+
+        function onYouTubeIframeAPIReady() { 
+            player = new YT.Player('player', { 
+                height: '100%', width: '100%', 
+                playerVars: { 'autoplay': 1, 'controls': 0, 'rel': 0 },
+                events: { 'onReady': (e) => { isPlayerReady = true; e.target.setVolume(globalVolume); } }
+            }); 
         }
+
+        function voteSkip() { if (!isRoundEnded) socket.emit('vote_skip'); document.getElementById('skipBtn').disabled = true; }
+        document.getElementById('chatInput').addEventListener('keypress', (e) => { if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } });
+        function extractVideoID(url) { const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); return (m && m[7].length == 11) ? m[7] : false; }
+        if (roomCode && nickname) socket.emit('join_room', { nickname, roomCode });
+        else location.href = '/';
     </script>
 </body>
 </html>

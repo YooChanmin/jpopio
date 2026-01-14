@@ -34,6 +34,8 @@
         .file-btn { background-color: #2196F3; color: white; border: none; }
         .copy-btn { background-color: #9C27B0; color: white; border: none; }
 
+        .info-msg { color: #e67e22; font-size: 13px; margin: 10px 0; font-weight: bold; }
+
         #settingsBtn { position: absolute; top: 15px; right: 320px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; transition: background 0.2s; }
         #settingsBtn:hover { background: rgba(0,0,0,0.8); }
         #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 400; justify-content: center; align-items: center; }
@@ -63,7 +65,7 @@
             <div id="roomCodeDisplay" class="room-code-text">...</div>
             <button onclick="copyRoomCode()" style="background:none; border:1px solid #bdc3c7; color:#bdc3c7;">코드 복사</button>
         </div>
-        <div class="user-list-title">접속 유저 <span id="userCount">(0)</span></div>
+        <div class="user-list-title">접속 유저 <span id="userCount">(0/12)</span></div>
         <ul id="userList"></ul>
     </aside>
 
@@ -120,10 +122,22 @@
                     <option value="separated">정답자 채팅 분리</option>
                     <option value="censored">정답 검열</option>
                 </select>
+                <br>
+                
+                <span>장르 선택 </span>
+                <select id="genreSelect" class="input-style" style="width: 200px;" onchange="syncSetting('genreSelect', this.value)">
+                    <option value="random" selected>랜덤</option>
+                    <option value="jpop">J-POP</option>
+                </select>
+                <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px; margin-left: 60px;">
+                    ※ K-POP, POP 등 장르 추후 업데이트 예정
+                </div>
             </div>
 
             <div id="customViewer" style="display: none;">
                 <p>데이터 확인/수정 (방장만 수정 가능)</p>
+                <div class="info-msg">※ 정답이 여러 개일 경우 "정답1,정답2"처럼 쉼표로 구분해서 입력하세요.</div>
+                
                 <div id="hostOnlyButtons">
                     <button class="file-btn" onclick="document.getElementById('fileInput').click()">📂 불러오기</button>
                     <button class="file-btn" onclick="exportToJson()">💾 저장하기</button>
@@ -145,29 +159,23 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // 1. 초기 변수 설정
         const socket = io({ transports: ['websocket'] });
         let currentRoomCode = null;
         let myNickname = sessionStorage.getItem("nickname");
-        // ★ const 대신 let을 사용하여 권한 변경 가능하게 설정
         let isHost = sessionStorage.getItem("isHost") === "true"; 
         let globalVolume = localStorage.getItem('gameVolume') || 50;
 
         const defaultTemplate = [
-            { "link": "https://youtu.be/example1", "startTime": "0", "answer": "정답1", "hint": "힌트1" },
-            { "link": "https://youtu.be/example2", "startTime": "30", "answer": "정답2", "hint": "힌트2" }
+            { "link": "https://youtu.be/example1", "startTime": "0", "answer": "정답1,정답2", "hint": "생략 가능" },
+            { "link": "https://youtu.be/example2", "startTime": "30", "answer": "정답3", "hint": "" }
         ];
 
         window.onload = function() {
             if(!myNickname) { alert("로그인 정보가 없습니다."); location.href='/'; return; }
-            
-            // 볼륨 UI 초기화
             document.getElementById('volumeSlider').value = globalVolume;
             document.getElementById('volumeValue').innerText = globalVolume;
-
             setupUI();
 
-            // 방장인 경우 세션에서 커스텀 데이터 불러오기
             if (isHost) {
                 const savedData = sessionStorage.getItem("customProblems");
                 const editor = document.getElementById('jsonEditor');
@@ -178,7 +186,6 @@
                 }
             }
 
-            // URL 파라미터 확인 및 입장 처리
             const params = new URLSearchParams(window.location.search);
             if (params.get('room')) {
                 currentRoomCode = params.get('room');
@@ -189,8 +196,6 @@
                     history.pushState(null, null, `?room=${currentRoomCode}`);
                     joinRoomProcess();
                 });
-            } else {
-                alert("잘못된 접근입니다."); location.href='/';
             }
         };
 
@@ -199,11 +204,7 @@
             socket.emit('join_room', { nickname: myNickname, roomCode: currentRoomCode });
         }
 
-        // --- 소켓 이벤트 리스너 ---
-
-        socket.on('error_msg', (msg) => { alert(msg); location.href='/'; });
-
-        socket.on('user_joined', (data) => updateUserList(data.users));
+        socket.on('user_joined', (data) => updateUserList(data.users, data.currentCount, data.maxCount, data.hostId));
 
         socket.on('settings_changed', (data) => {
             if (isHost) return; 
@@ -224,156 +225,94 @@
             list.scrollTop = list.scrollHeight;
         });
 
-        // ★ 방장 인계 이벤트 수신
         socket.on('change_host', (data) => { 
             if(socket.id === data.newHostId) { 
-                alert("👑 방장이 되었습니다! 이제 게임 설정을 변경하고 시작할 수 있습니다."); 
+                alert("👑 방장이 되었습니다!"); 
                 isHost = true; 
                 sessionStorage.setItem("isHost", "true"); 
                 setupUI(); 
             } 
         });
 
-        // --- UI 및 기능 함수 ---
-
         function setupUI() {
             const startBtn = document.getElementById('startBtn');
             const guestMsg = document.getElementById('guestMsg');
             const hostBtns = document.getElementById('hostOnlyButtons');
-            const toggleBtn = document.getElementById('toggleBtn');
-
             if (isHost) {
-                document.querySelectorAll('select, input, textarea').forEach(el => {
-                    el.disabled = false;
-                });
+                document.querySelectorAll('select, input, textarea').forEach(el => { el.disabled = false; });
                 startBtn.style.display = 'inline-block';
                 guestMsg.style.display = 'none';
                 hostBtns.style.display = 'block';
-                toggleBtn.innerText = "커스텀 문제 확인";
             } else {
-                document.querySelectorAll('select, input, textarea').forEach(el => {
-                    if(el.id !== 'chatInput') el.disabled = true;
-                });
+                document.querySelectorAll('select, input, textarea').forEach(el => { if(el.id !== 'chatInput') el.disabled = true; });
                 startBtn.style.display = 'none';
                 guestMsg.style.display = 'block';
                 hostBtns.style.display = 'none';
-                toggleBtn.innerText = "커스텀 문제 보기 (수정 불가)";
             }
+        }
+
+        function updateUserList(users, currentCount, maxCount, hostId) {
+            const list = document.getElementById('userList');
+            document.getElementById('userCount').innerText = `(${currentCount}/${maxCount})`;
+            list.innerHTML = "";
+            users.forEach(u => {
+                const li = document.createElement('li');
+                // 방장 왕관 추가
+                li.innerText = (u.id === hostId ? "👑 " : "") + u.nickname;
+                // 나(Me) 초록색 강조 복구
+                if(u.nickname === myNickname) li.classList.add('me');
+                list.appendChild(li);
+            });
         }
 
         function syncSetting(type, value) {
             if(isHost && currentRoomCode) {
                 if(type === 'roundsSelect') toggleRoundInput(document.getElementById('roundsSelect'));
-                socket.emit('update_settings', { roomCode: currentRoomCode, type: type, value: value });
+                socket.emit('update_settings', { roomCode: currentRoomCode, type, value });
             }
         }
 
         function startGame() {
-            if(!currentRoomCode) return;
-            const rounds = document.getElementById('roundsSelect').value === 'custom' 
-                            ? document.getElementById('roundsInput').value : document.getElementById('roundsSelect').value;
-            let customList = [];
-            try { customList = JSON.parse(document.getElementById('jsonEditor').value); } catch(e){}
-
+            const rounds = document.getElementById('roundsSelect').value === 'custom' ? document.getElementById('roundsInput').value : document.getElementById('roundsSelect').value;
             fetch('/update-room-settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     roomCode: currentRoomCode,
-                    rounds: rounds,
+                    rounds,
                     time: document.getElementById('timeSelect').value,
                     hint: document.getElementById('hintOnOffSelect').value,
                     skipVoteRatio: document.getElementById('skipVoteRatioSelect').value,
                     chatMode: document.getElementById('chatModeSelect').value,
-                    customList: customList
+                    customList: JSON.parse(document.getElementById('jsonEditor').value || "[]"),
+                    genre: document.getElementById('genreSelect').value
                 })
-            }).then(res=>res.json()).then(data => {
-                if(!data.success) alert(data.message);
             });
         }
 
-        function updateUserList(users) {
-            const list = document.getElementById('userList');
-            document.getElementById('userCount').innerText = `(${users.length})`;
-            list.innerHTML = "";
-            users.forEach(u => {
-                const li = document.createElement('li');
-                li.innerText = u;
-                if(u === myNickname) li.classList.add('me');
-                list.appendChild(li);
-            });
-        }
-
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
-        function saveVolume(val) {
-            globalVolume = val;
-            document.getElementById('volumeValue').innerText = val;
-            localStorage.setItem('gameVolume', val);
-        }
-
-        function copyRoomCode() { navigator.clipboard.writeText(currentRoomCode); alert("복사완료"); }
-        
         function toggleView() { 
             const basic = document.getElementById('basicSettings');
             const custom = document.getElementById('customViewer');
             const btn = document.getElementById('toggleBtn');
-            if(custom.style.display === 'none'){ 
-                custom.style.display = 'block'; basic.style.display = 'none'; 
-                btn.innerText = "기본 설정으로 돌아가기";
-            } else { 
-                custom.style.display = 'none'; basic.style.display = 'block'; 
-                btn.innerText = isHost ? "커스텀 문제 확인" : "커스텀 문제 보기 (수정 불가)";
-            }
+            const isNone = custom.style.display === 'none';
+            custom.style.display = isNone ? 'block' : 'none';
+            basic.style.display = isNone ? 'none' : 'block';
+            btn.innerText = isNone ? "기본 설정으로 돌아가기" : (isHost ? "커스텀 문제 확인" : "커스텀 문제 보기 (수정 불가)");
         }
 
-        async function copyJsonToClipboard() {
-            const editor = document.getElementById('jsonEditor');
-            await navigator.clipboard.writeText(editor.value);
-            alert("커스텀 문제가 클립보드에 복사되었습니다!");
-        }
+        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
+        function saveVolume(val) { globalVolume = val; document.getElementById('volumeValue').innerText = val; localStorage.setItem('gameVolume', val); }
+        function copyRoomCode() { navigator.clipboard.writeText(currentRoomCode); alert("복사완료"); }
+        function resetRoundInput() { document.getElementById('customRoundArea').style.display = 'none'; document.getElementById('roundsSelect').style.display = 'inline-block'; }
+        function toggleRoundInput(sel) { if(sel.value === 'custom') { sel.style.display = 'none'; document.getElementById('customRoundArea').style.display = 'inline-block'; } }
 
-        function importFromFile(input) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                try {
-                    const val = JSON.stringify(JSON.parse(e.target.result), null, 2);
-                    document.getElementById('jsonEditor').value = val;
-                    syncSetting('jsonEditor', val);
-                } catch(err) { alert("JSON 파일 형식이 아닙니다."); }
-            };
-            reader.readAsText(input.files[0]);
-        }
-
-        function toggleRoundInput(sel) {
-            if(sel.value === 'custom') { 
-                sel.style.display = 'none'; 
-                document.getElementById('customRoundArea').style.display = 'inline-block'; 
-            }
-        }
-
-        function resetRoundInput() {
-            document.getElementById('customRoundArea').style.display = 'none';
-            const sel = document.getElementById('roundsSelect');
-            sel.style.display = 'inline-block';
-            sel.value = '25';
-            syncSetting('roundsSelect', '25');
-        }
-
-        async function exportToJson() { 
-            const data = document.getElementById('jsonEditor').value;
-            const blob = new Blob([data], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'game_data.json';
-            a.click(); URL.revokeObjectURL(url);
-        }
+        async function copyJsonToClipboard() { await navigator.clipboard.writeText(document.getElementById('jsonEditor').value); alert("복사완료"); }
+        function importFromFile(i) { const r = new FileReader(); r.onload = e => { document.getElementById('jsonEditor').value = JSON.stringify(JSON.parse(e.target.result), null, 2); syncSetting('jsonEditor', document.getElementById('jsonEditor').value); }; r.readAsText(i.files[0]); }
+        function exportToJson() { const blob = new Blob([document.getElementById('jsonEditor').value], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'data.json'; a.click(); }
 
         document.getElementById('chatInput').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter' && e.target.value.trim()) {
-                socket.emit('send_chat', e.target.value.trim());
-                e.target.value = '';
-            }
+            if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; }
         });
     </script>
 </body>
