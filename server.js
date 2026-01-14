@@ -11,26 +11,27 @@ app.use(express.json());
 const MAX_PLAYERS = 12;
 
 app.get('/', (req, res) => res.sendFile(__dirname + '/public/index.html'));
-// 방 설정과 게임 플레이를 하나의 파일에서 처리합니다.
 app.get('/room', (req, res) => res.sendFile(__dirname + '/public/room.html'));
 
 function validateQuestionPool(pool) {
     const targetArray = Array.isArray(pool) ? pool : (pool && pool.questions ? pool.questions : []);
     if (!Array.isArray(targetArray)) return [];
-    
+
     return targetArray.filter(item => {
         const hasLink = item.link && (item.link.includes('youtu.be') || item.link.includes('youtube.com'));
         const hasAnswer = item.answer && item.answer.toString().trim().length > 0;
-        const isNotExample = item.isExample !== true && 
-                             item.isExample !== 'true' &&
-                             !JSON.stringify(item).toLowerCase().includes('example');
+        const isNotExample = item.isExample !== true &&
+            item.isExample !== 'true' &&
+            !JSON.stringify(item).toLowerCase().includes('example');
         return hasLink && hasAnswer && isNotExample;
     });
 }
 
 function loadGenrePools() {
     const dataDir = path.join(__dirname, 'data');
-    const pools = { random: [] };
+    const pools = {
+        random: []
+    };
     try {
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir);
@@ -92,33 +93,49 @@ function getUniqueRoomCode() {
 app.get('/generate-code', (req, res) => {
     const roomCode = getUniqueRoomCode();
     rooms[roomCode] = {
-        players: [], 
-        hostId: null, 
-        hostNickname: null, 
-        inGame: false, 
-        rounds: 5, 
-        time: 30, 
+        players: [],
+        hostId: null,
+        hostNickname: null,
+        inGame: false,
+        rounds: 5,
+        time: 30,
         hint: 'off',
-        skipVoteRatio: 'overHalf', 
-        chatMode: 'separated', 
-        originalPool: [], 
-        activeQueue: [], 
-        currentRound: 0, 
-        currentQuestion: null, 
-        timer: null, 
-        timeLeft: 0, 
-        deleteTimer: null, 
-        hostTransferTimer: null, 
-        skipVotes: new Set()
+        skipVoteRatio: 'overHalf',
+        chatMode: 'separated',
+        originalPool: [],
+        activeQueue: [],
+        currentRound: 0,
+        currentQuestion: null,
+        timer: null,
+        timeLeft: 0,
+        deleteTimer: null,
+        hostTransferTimer: null,
+        skipVotes: new Set(),
+        acceptingAnswers: false
     };
-    res.json({ roomCode });
+    res.json({
+        roomCode
+    });
 });
 
 app.post('/update-room-settings', (req, res) => {
-    const { roomCode: rawCode, rounds, time, hint, genre, customList, skipVoteRatio, chatMode } = req.body;
+    const {
+        roomCode: rawCode,
+        rounds,
+        time,
+        hint,
+        genre,
+        customList,
+        skipVoteRatio,
+        chatMode
+    } = req.body;
     const roomCode = rawCode ? rawCode.toUpperCase() : "";
     const room = rooms[roomCode];
     if (!room) return res.json({ success: false });
+
+    // 로비에 돌아오지 않은 사람이 있는지 최종 확인
+    const allInLobby = room.players.every(p => p.status === 'lobby');
+    if (!allInLobby) return res.json({ success: false, msg: "모든 인원이 로비로 돌아와야 합니다." });
 
     let validPool = validateQuestionPool(customList);
     if (validPool.length === 0) {
@@ -136,12 +153,17 @@ app.post('/update-room-settings', (req, res) => {
     room.chatMode = chatMode;
     room.inGame = true;
     room.currentRound = 0;
-    room.players.forEach(p => { 
-        p.score = 0; 
-        p.isCorrect = false; 
+    room.players.forEach(p => {
+        p.score = 0;
+        p.isCorrect = false;
+        p.status = 'playing'; // 게임 시작 시 상태 변경
     });
 
-    io.to(roomCode).emit('chat_message', { nickname: '시스템', msg: '잠시 후 게임이 시작됩니다!', type: 'system' });
+    io.to(roomCode).emit('chat_message', {
+        nickname: '시스템',
+        msg: '잠시 후 게임이 시작됩니다!',
+        type: 'system'
+    });
     io.to(roomCode).emit('game_started');
     setTimeout(() => startNextRound(roomCode), 3000);
     res.json({ success: true });
@@ -156,27 +178,28 @@ function getSkipThreshold(room) {
 
 function startNextRound(roomCode) {
     const room = rooms[roomCode];
-    if (!room || room.currentRound >= room.rounds) { 
-        endGame(roomCode); 
-        return; 
+    if (!room || room.currentRound >= room.rounds) {
+        endGame(roomCode);
+        return;
     }
 
     room.currentRound++;
     room.timeLeft = room.time;
     room.skipVotes.clear();
     room.players.forEach(p => p.isCorrect = false);
+    room.acceptingAnswers = true;
 
     if (room.activeQueue.length === 0) room.activeQueue = shuffle(room.originalPool);
     room.currentQuestion = room.activeQueue.pop();
 
     io.to(roomCode).emit('round_start', {
-        round: room.currentRound, 
-        totalRounds: room.rounds, 
+        round: room.currentRound,
+        totalRounds: room.rounds,
         link: room.currentQuestion.link,
-        startTime: room.currentQuestion.startTime || 0, 
+        startTime: room.currentQuestion.startTime || 0,
         hint: room.hint === 'on' ? room.currentQuestion.hint : null,
-        timeLimit: room.time, 
-        requiredSkip: getSkipThreshold(room), 
+        timeLimit: room.time,
+        requiredSkip: getSkipThreshold(room),
         hostId: room.hostId
     });
 
@@ -190,31 +213,47 @@ function startNextRound(roomCode) {
 
 function endRound(roomCode, reason) {
     const room = rooms[roomCode];
-    if(!room) return;
+    if (!room) return;
+    
+    room.acceptingAnswers = false;
     clearInterval(room.timer);
-    if (reason.includes("스킵")) {
-        io.to(roomCode).emit('chat_message', { nickname: '시스템', msg: '라운드가 스킵되었습니다.', type: 'system' });
-    }
+
+    io.to(roomCode).emit('chat_message', {
+        nickname: '시스템',
+        msg: reason,
+        type: 'system'
+    });
+
     io.to(roomCode).emit('round_end', {
-        reason: reason, 
+        reason: reason,
         answer: room.currentQuestion.answer,
-        scores: room.players.map(p => ({ id: p.id, nickname: p.nickname, score: p.score })), 
+        scores: room.players.map(p => ({
+            id: p.id,
+            nickname: p.nickname,
+            score: p.score
+        })),
         hostId: room.hostId
     });
-    setTimeout(() => startNextRound(roomCode), 7000);
+    
+    if (room.currentRound < room.rounds) {
+        setTimeout(() => startNextRound(roomCode), 7000);
+    } else {
+        setTimeout(() => endGame(roomCode), 7000);
+    }
 }
 
 function endGame(roomCode) {
     const room = rooms[roomCode];
-    if(!room) return;
+    if (!room) return;
     room.inGame = false;
+    room.acceptingAnswers = false;
+    
     const sorted = [...room.players].sort((a, b) => b.score - a.score);
-    let rankingMsg = "🎮 게임 종료! 최종 순위: ";
-    sorted.slice(0, 3).forEach((p, i) => {
-        rankingMsg += `[${i + 1}등] ${p.nickname} `;
+    room.players.forEach(p => p.status = 'result'); // 결과 화면 상태로 변경
+
+    io.to(roomCode).emit('game_over', {
+        ranks: sorted
     });
-    io.to(roomCode).emit('chat_message', { nickname: '시스템', msg: rankingMsg, type: 'system' });
-    io.to(roomCode).emit('game_over', { ranks: sorted });
 }
 
 io.on('connection', (socket) => {
@@ -222,58 +261,96 @@ io.on('connection', (socket) => {
         const { nickname, roomCode: rawCode } = data;
         const roomCode = rawCode ? rawCode.toUpperCase() : "";
         const room = rooms[roomCode];
-        
+
         if (!room) {
             socket.emit('room_not_found');
             return;
         }
 
         if (room.players.length >= MAX_PLAYERS) return;
-        
+
         socket.join(roomCode);
-        socket.nickname = nickname; 
+        socket.nickname = nickname;
         socket.roomCode = roomCode;
-        
-        if (room.deleteTimer) { 
-            clearTimeout(room.deleteTimer); 
-            room.deleteTimer = null; 
+
+        if (room.deleteTimer) {
+            clearTimeout(room.deleteTimer);
+            room.deleteTimer = null;
         }
 
         let player = room.players.find(p => p.nickname === nickname);
         if (player) {
             player.id = socket.id;
         } else {
-            room.players.push({ id: socket.id, nickname, score: 0, isCorrect: false });
+            room.players.push({
+                id: socket.id,
+                nickname,
+                score: 0,
+                isCorrect: false,
+                status: 'lobby' // 기본 상태 로비
+            });
         }
 
-        if (!room.hostNickname) { 
-            room.hostId = socket.id; 
-            room.hostNickname = nickname; 
+        if (!room.hostNickname) {
+            room.hostId = socket.id;
+            room.hostNickname = nickname;
         } else if (room.hostNickname === nickname) {
             room.hostId = socket.id;
-            if (room.hostTransferTimer) { 
-                clearTimeout(room.hostTransferTimer); 
-                room.hostTransferTimer = null; 
+            if (room.hostTransferTimer) {
+                clearTimeout(room.hostTransferTimer);
+                room.hostTransferTimer = null;
             }
         }
-        
-        io.to(roomCode).emit('chat_message', { nickname: '시스템', msg: `${nickname}님이 입장하셨습니다.`, type: 'system' });
-        io.to(roomCode).emit('user_joined', { 
-            users: room.players.map(p => ({ id: p.id, nickname: p.nickname })),
-            currentCount: room.players.length, 
-            maxCount: MAX_PLAYERS, 
-            hostId: room.hostId,
-            inGame: room.inGame // 현재 게임 중인지 여부 전달
+
+        io.to(roomCode).emit('chat_message', {
+            nickname: '시스템',
+            msg: `${nickname}님이 입장하셨습니다.`,
+            type: 'system'
         });
+        io.to(roomCode).emit('user_joined', {
+            users: room.players.map(p => ({
+                id: p.id,
+                nickname: p.nickname,
+                status: p.status // 상태 포함
+            })),
+            currentCount: room.players.length,
+            maxCount: MAX_PLAYERS,
+            hostId: room.hostId,
+            inGame: room.inGame
+        });
+    });
+
+    // 로비 복귀 요청 처리
+    socket.on('back_to_lobby', () => {
+        const room = rooms[socket.roomCode];
+        if (!room) return;
+        const player = room.players.find(p => p.id === socket.id);
+        if (player) {
+            player.status = 'lobby';
+            io.to(socket.roomCode).emit('user_joined', { 
+                users: room.players.map(p => ({ id: p.id, nickname: p.nickname, status: p.status })),
+                currentCount: room.players.length,
+                maxCount: MAX_PLAYERS,
+                hostId: room.hostId,
+                inGame: room.inGame
+            });
+        }
     });
 
     socket.on('vote_skip', () => {
         const room = rooms[socket.roomCode];
-        if (!room || !room.inGame) return;
+        if (!room || !room.inGame || !room.acceptingAnswers) return;
         room.skipVotes.add(socket.id);
         const threshold = getSkipThreshold(room);
-        io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${socket.nickname}님이 스킵에 투표했습니다. (${room.skipVotes.size}/${threshold})`, type: 'system' });
-        io.to(socket.roomCode).emit('skip_update', { current: room.skipVotes.size, required: threshold });
+        io.to(socket.roomCode).emit('chat_message', {
+            nickname: '시스템',
+            msg: `${socket.nickname}님이 스킵에 투표했습니다. (${room.skipVotes.size}/${threshold})`,
+            type: 'system'
+        });
+        io.to(socket.roomCode).emit('skip_update', {
+            current: room.skipVotes.size,
+            required: threshold
+        });
         if (room.skipVotes.size >= threshold) endRound(socket.roomCode, "⏭️ 투표로 스킵되었습니다!");
     });
 
@@ -282,7 +359,11 @@ io.on('connection', (socket) => {
         if (!room || room.hostId !== socket.id || targetId === socket.id) return;
         const targetPlayer = room.players.find(p => p.id === targetId);
         if (targetPlayer) {
-            io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${targetPlayer.nickname}님이 퇴장당했습니다.`, type: 'system' });
+            io.to(socket.roomCode).emit('chat_message', {
+                nickname: '시스템',
+                msg: `${targetPlayer.nickname}님이 퇴장당했습니다.`,
+                type: 'system'
+            });
             io.to(targetId).emit('kicked');
             const targetSocket = io.sockets.sockets.get(targetId);
             if (targetSocket) targetSocket.leave(socket.roomCode);
@@ -296,37 +377,54 @@ io.on('connection', (socket) => {
         if (!player) return;
 
         if (!room.inGame) {
-            io.to(socket.roomCode).emit('chat_message', { nickname: socket.nickname, msg, type: 'chat' });
+            io.to(socket.roomCode).emit('chat_message', {
+                nickname: socket.nickname,
+                msg,
+                type: 'chat'
+            });
             return;
         }
 
-        const answers = room.currentQuestion.answer.split(',');
-        const isCorrectInput = answers.some(a => normalizeAnswer(a) === normalizeAnswer(msg));
+        if (room.acceptingAnswers && !player.isCorrect) {
+            const answers = room.currentQuestion.answer.split(',').map(a => a.trim());
+            const isCorrectInput = answers.some(a => normalizeAnswer(a) === normalizeAnswer(msg));
 
-        if (!player.isCorrect && isCorrectInput) {
-            player.isCorrect = true;
-            player.score += (room.timeLeft * 10);
-            io.to(socket.roomCode).emit('correct_answer', { nickname: socket.nickname });
-            io.to(socket.roomCode).emit('update_score', { 
-                players: room.players.map(p => ({ id: p.id, nickname: p.nickname, score: p.score })), 
-                hostId: room.hostId
-            });
-            if (room.players.every(p => p.isCorrect)) endRound(socket.roomCode, "🎉 모두 정답!");
-            return;
+            if (isCorrectInput) {
+                player.isCorrect = true;
+                player.score += (room.timeLeft * 10);
+                io.to(socket.roomCode).emit('correct_answer', {
+                    nickname: socket.nickname
+                });
+                io.to(socket.roomCode).emit('update_score', {
+                    players: room.players.map(p => ({
+                        id: p.id,
+                        nickname: p.nickname,
+                        score: p.score,
+                        status: p.status
+                    })),
+                    hostId: room.hostId
+                });
+                if (room.players.every(p => p.isCorrect)) endRound(socket.roomCode, "🎉 모두 정답!");
+                return;
+            }
         }
 
         if (player.isCorrect) {
+            const answers = room.currentQuestion.answer.split(',').map(a => a.trim());
             if (room.chatMode === 'separated') {
                 room.players.filter(p => p.isCorrect).forEach(p => {
-                    io.to(p.id).emit('chat_message', { nickname: socket.nickname, msg, type: 'chat_gray' });
+                    io.to(p.id).emit('chat_message', {
+                        nickname: socket.nickname,
+                        msg,
+                        type: 'chat_gray'
+                    });
                 });
             } else if (room.chatMode === 'censored') {
                 let censoredMsg = msg;
                 let highlightedMsg = msg;
                 answers.forEach(a => {
-                    const cleanAns = a.trim();
-                    if (cleanAns.length > 0) {
-                        const reg = new RegExp(cleanAns.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    if (a.length > 0) {
+                        const reg = new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
                         censoredMsg = censoredMsg.replace(reg, '***');
                         highlightedMsg = highlightedMsg.replace(reg, `<span class="chat-gray-word">$&</span>`);
                     }
@@ -334,48 +432,76 @@ io.on('connection', (socket) => {
 
                 room.players.forEach(p => {
                     if (p.isCorrect) {
-                        io.to(p.id).emit('chat_message', { nickname: socket.nickname, msg: highlightedMsg, type: 'chat_html' });
+                        io.to(p.id).emit('chat_message', {
+                            nickname: socket.nickname,
+                            msg: highlightedMsg,
+                            type: 'chat_html'
+                        });
                     } else {
-                        io.to(p.id).emit('chat_message', { nickname: socket.nickname, msg: censoredMsg, type: 'chat' });
+                        io.to(p.id).emit('chat_message', {
+                            nickname: socket.nickname,
+                            msg: censoredMsg,
+                            type: 'chat'
+                        });
                     }
                 });
             }
         } else {
-            io.to(socket.roomCode).emit('chat_message', { nickname: socket.nickname, msg, type: 'chat' });
+            io.to(socket.roomCode).emit('chat_message', {
+                nickname: socket.nickname,
+                msg,
+                type: 'chat'
+            });
         }
     });
 
     socket.on('disconnect', () => {
         const room = rooms[socket.roomCode];
-        if(!room) return;
+        if (!room) return;
         const isHost = (room.hostId === socket.id);
         const nickname = socket.nickname;
         room.players = room.players.filter(p => p.id !== socket.id);
         if (nickname) {
-            io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `${nickname}님이 퇴장하셨습니다.`, type: 'system' });
+            io.to(socket.roomCode).emit('chat_message', {
+                nickname: '시스템',
+                msg: `${nickname}님이 퇴장하셨습니다.`,
+                type: 'system'
+            });
         }
         if (isHost && room.players.length > 0) {
             room.hostTransferTimer = setTimeout(() => {
                 if (room.players.length > 0) {
                     const newHost = room.players[0];
-                    room.hostId = newHost.id; 
+                    room.hostId = newHost.id;
                     room.hostNickname = newHost.nickname;
-                    io.to(socket.roomCode).emit('chat_message', { nickname: '시스템', msg: `방장이 ${newHost.nickname}로 변경되었습니다.`, type: 'system' });
-                    io.to(socket.roomCode).emit('change_host', { newHostId: room.hostId });
+                    io.to(socket.roomCode).emit('chat_message', {
+                        nickname: '시스템',
+                        msg: `방장이 ${newHost.nickname}로 변경되었습니다.`,
+                        type: 'system'
+                    });
+                    io.to(socket.roomCode).emit('change_host', {
+                        newHostId: room.hostId
+                    });
                 }
             }, 3000);
         }
-        
-        io.to(socket.roomCode).emit('user_joined', { 
-            users: room.players.map(p => ({ id: p.id, nickname: p.nickname })),
-            currentCount: room.players.length, 
-            maxCount: MAX_PLAYERS, 
+
+        io.to(socket.roomCode).emit('user_joined', {
+            users: room.players.map(p => ({
+                id: p.id,
+                nickname: p.nickname,
+                status: p.status
+            })),
+            currentCount: room.players.length,
+            maxCount: MAX_PLAYERS,
             hostId: room.hostId,
             inGame: room.inGame
         });
-        
+
         if (room.players.length === 0) {
-            room.deleteTimer = setTimeout(() => { delete rooms[socket.roomCode]; }, 10000);
+            room.deleteTimer = setTimeout(() => {
+                delete rooms[socket.roomCode];
+            }, 10000);
         }
     });
 });

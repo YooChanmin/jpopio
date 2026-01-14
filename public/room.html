@@ -4,70 +4,427 @@
     <meta charset="UTF-8">
     <title>whatsong.io - 방</title>
     <style>
-        body { margin: 0; font-family: 'Nanum Gothic', sans-serif; background-color: #2c3e50; color: white; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* 좌측 패널: 로비(Room Info)와 게임(Scoreboard) 공유 */
-        .left-panel { width: 280px; background-color: #34495e; padding: 20px; display: flex; flex-direction: column; border-right: 1px solid #1a252f; flex-shrink: 0; }
-        .room-info { background-color: #2c3e50; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
-        .room-code-text { font-size: 32px; font-weight: bold; color: #f1c40f; letter-spacing: 2px; margin: 5px 0; }
-        .user-list-title { border-bottom: 1px solid #7f8c8d; padding-bottom: 10px; margin-bottom: 10px; font-size: 18px; }
-        #userList { list-style: none; padding: 0; overflow-y: auto; flex-grow: 1; }
-        #userList li { padding: 10px; border-bottom: 1px solid #34495e; display: flex; justify-content: space-between; align-items: center; }
-        #userList li .me { color: #2ecc71 !important; font-weight: bold; }
-        
-        /* 인게임 전용 좌측 스타일 */
-        .timer-box { font-size: 40px; font-weight: bold; color: #e74c3c; text-align: center; margin-bottom: 20px; background: #2c3e50; padding: 10px; border-radius: 10px; display: none; }
-        .round-info { text-align: center; margin-bottom: 20px; color: #bdc3c7; display: none; }
-        .score-board { flex-grow: 1; overflow-y: auto; display: none; }
-        .player-row { padding: 10px; border-bottom: 1px solid #7f8c8d; display: flex; justify-content: space-between; align-items: center; }
-        .player-row.me { color: #2ecc71 !important; font-weight: bold; }
+        body {
+            margin: 0;
+            font-family: 'Nanum Gothic', sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-        /* 중앙 패널 */
-        .main-content { flex-grow: 1; background-color: #f0f2f5; padding: 40px; overflow-y: auto; text-align: center; color: #333; position: relative; }
-        
-        /* 로비 뷰 전용 스타일 */
-        .lobby-view { display: block; }
-        .input-style { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; color: #333; }
-        .textarea-style { width: 90%; height: 250px; padding: 10px; margin: 10px auto; display: block; font-family: monospace; box-sizing: border-box; }
-        .start-btn { padding: 15px 50px; font-size: 24px; background-color: #e74c3c; color: white; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; }
-        .file-btn { background-color: #2196F3; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
-        .copy-btn { background-color: #9C27B0; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
-        .kick-btn { padding: 2px 8px; background-color: #e74c3c; color: white; border: none; font-size: 11px; border-radius: 3px; cursor: pointer; }
+        .left-panel {
+            width: 280px;
+            background-color: #34495e;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #1a252f;
+            flex-shrink: 0;
+        }
 
-        /* 인게임 뷰 전용 스타일 */
-        .game-view { display: none; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: center; background-color: #2c3e50; color: white; }
-        #waitingScreen { position: absolute; width: 100%; height: 100%; background: #2c3e50; display: flex; justify-content: center; align-items: center; z-index: 600; color: white; }
-        #youtube-container { width: 80%; max-width: 800px; aspect-ratio: 16/9; background: #000; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; opacity: 0; pointer-events: none; margin-bottom: 30px; }
-        #youtube-container.show { opacity: 1; pointer-events: auto; }
-        #player { width: 100%; height: 100%; }
-        #answerDisplay { font-size: 50px; color: #f1c40f; font-weight: bold; display: none; margin-bottom: 10px; }
-        #hintBox { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 24px; color: #3498db; background: rgba(0,0,0,0.8); padding: 12px 30px; border-radius: 30px; display: none; z-index: 500; border: 1px solid #3498db; }
-        #centerInstruction { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: bold; color: white; text-align: center; width: 100%; pointer-events: none; z-index: 400; }
+        .room-info {
+            background-color: #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-        /* 우측 채팅 패널 */
-        .right-panel { width: 300px; background-color: #2c3e50; display: flex; flex-direction: column; border-left: 1px solid #1a252f; flex-shrink: 0; }
-        .chat-header { padding: 15px; background: #34495e; color: white; text-align: center; font-weight: bold; }
-        #chatList { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; background-color: #1a1a1a; }
-        #chatList li { padding: 4px 0; font-size: 14px; color: #ddd; word-wrap: break-word; }
-        .chat-me { color: #ddd !important; }
-        .chat-me b { color: #2ecc71 !important; }
-        .chat-system { color: #f39c12 !important; font-weight: bold; text-align: center; }
-        .chat-correct { color: #2ecc71 !important; font-weight: bold; text-align: center; }
-        .chat-gray { color: #888 !important; }
-        .chat-gray-word { color: #888; }
-        .chat-input-bar { padding: 10px; background: #34495e; display: flex; }
-        #chatInput { flex-grow: 1; padding: 10px; border: none; border-radius: 4px; font-size: 14px; outline: none; background: #eee; color: #333; }
+        .room-code-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #f1c40f;
+            letter-spacing: 2px;
+            margin: 5px 0;
+        }
 
-        /* 버튼류 */
-        .control-btns-wrapper { position: fixed; top: 10px; right: 310px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; align-items: flex-end; }
-        .control-btn { color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .kick-btn-sm { padding: 1px 5px; background-color: #e74c3c; color: white; border: none; font-size: 10px; border-radius: 3px; cursor: pointer; margin-left: 5px; }
-        #settingsBtn { background: rgba(52, 73, 94, 0.9); border: 1px solid #7f8c8d; }
-        #skipBtn { background-color: #3498db; display: none; } /* 게임 중에만 표시 */
+        .user-list-title {
+            border-bottom: 1px solid #7f8c8d;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
 
-        /* 환경설정 모달 */
-        #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: #34495e; color: white; padding: 25px; border-radius: 10px; width: 280px; text-align: center; border: 1px solid #7f8c8d; }
+        #userList {
+            list-style: none;
+            padding: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        #userList li {
+            padding: 10px;
+            border-bottom: 1px solid #34495e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #userList li .me {
+            color: #2ecc71 !important;
+            font-weight: bold;
+        }
+
+        /* 로비에 없는 사람(AFK) 회색 처리 */
+        .status-afk {
+            color: #888 !important;
+        }
+
+        .timer-box {
+            font-size: 40px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 20px;
+            background: #2c3e50;
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .round-info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+            display: none;
+        }
+
+        .score-board {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .player-row {
+            padding: 10px;
+            border-bottom: 1px solid #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-row.me {
+            color: #2ecc71 !important;
+            font-weight: bold;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            background-color: #f0f2f5;
+            padding: 40px;
+            overflow-y: auto;
+            text-align: center;
+            color: #333;
+            position: relative;
+        }
+
+        .lobby-view {
+            display: block;
+        }
+
+        .input-style {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            color: #333;
+        }
+
+        .textarea-style {
+            width: 90%;
+            height: 250px;
+            padding: 10px;
+            margin: 10px auto;
+            display: block;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+
+        .start-btn {
+            padding: 15px 50px;
+            font-size: 24px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* 비활성화된 시작 버튼 */
+        .start-btn:disabled {
+            background-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        .file-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-btn {
+            background-color: #9C27B0;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .kick-btn {
+            padding: 2px 8px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            font-size: 11px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .game-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        #waitingScreen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 600;
+            color: white;
+        }
+
+        #youtube-container {
+            width: 80%;
+            max-width: 800px;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+            margin-bottom: 30px;
+        }
+
+        #youtube-container.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+
+        #answerDisplay {
+            font-size: 50px;
+            color: #f1c40f;
+            font-weight: bold;
+            display: none;
+            margin-bottom: 10px;
+        }
+
+        #hintBox {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: #3498db;
+            background: rgba(0,0,0,0.8);
+            padding: 12px 30px;
+            border-radius: 30px;
+            display: none;
+            z-index: 500;
+            border: 1px solid #3498db;
+        }
+
+        #centerInstruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            width: 100%;
+            pointer-events: none;
+            z-index: 400;
+        }
+
+        /* 최종 결과 뷰 랭킹 스타일 */
+        #gameResultView h2 {
+            font-size: 60px;
+            margin: 10px 0;
+            color: #f1c40f;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+
+        #gameResultView .rank-1 { font-size: 80px; color: #f1c40f; }
+        #gameResultView .rank-2 { font-size: 60px; color: #bdc3c7; }
+        #gameResultView .rank-3 { font-size: 50px; color: #cd7f32; }
+
+        .right-panel {
+            width: 300px;
+            background-color: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid #1a252f;
+            flex-shrink: 0;
+        }
+
+        .chat-header {
+            padding: 15px;
+            background: #34495e;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        #chatList {
+            flex-grow: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 10px;
+            margin: 0;
+            background-color: #1a1a1a;
+        }
+
+        #chatList li {
+            padding: 4px 0;
+            font-size: 14px;
+            color: #ddd;
+            word-wrap: break-word;
+        }
+
+        .chat-me {
+            color: #ddd !important;
+        }
+
+        .chat-me b {
+            color: #2ecc71 !important;
+        }
+
+        .chat-system {
+            color: #f39c12 !important;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chat-correct {
+            color: #2ecc71 !important;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .chat-gray {
+            color: #888 !important;
+        }
+
+        .chat-gray-word {
+            color: #888;
+        }
+
+        .chat-input-bar {
+            padding: 10px;
+            background: #34495e;
+            display: flex;
+        }
+
+        #chatInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+            background: #eee;
+            color: #333;
+        }
+
+        .control-btns-wrapper {
+            position: fixed;
+            top: 10px;
+            right: 310px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+            align-items: flex-end;
+        }
+
+        .control-btn {
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .kick-btn-sm {
+            padding: 1px 5px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            font-size: 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        #settingsBtn {
+            background: rgba(52, 73, 94, 0.9);
+            border: 1px solid #7f8c8d;
+        }
+
+        #skipBtn {
+            background-color: #3498db;
+            display: none;
+        }
+
+        #settingsModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #34495e;
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 280px;
+            text-align: center;
+            border: 1px solid #7f8c8d;
+        }
     </style>
 </head>
 <body>
@@ -80,7 +437,8 @@
         <div class="modal-content">
             <h2 style="margin-top:0;">🔊 환경설정</h2>
             <div style="margin: 20px 0;">
-                <label>게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
+                <label>게임 볼륨: <span id="volumeValue">50</span>%</label>
+                <br><br>
                 <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)" style="width:100%;">
             </div>
             <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">닫기</button>
@@ -99,10 +457,10 @@
         </div>
         
         <div id="gameLeft" style="display: none;">
-            <div class="timer-box" id="timerDisplay">--</div>
+            <div id="timerDisplay" class="timer-box">--</div>
             <div id="roundDisplay" class="round-info">준비 중</div>
             <h3>🏆 점수판</h3>
-            <div class="score-board" id="scoreBoard" style="display: block;"></div>
+            <div id="scoreBoard" class="score-board" style="display: block;"></div>
         </div>
     </aside>
 
@@ -119,8 +477,12 @@
                 <div id="basicSettings">
                     <span>라운드 수 </span>
                     <select id="roundsSelect" class="input-style" style="width: 200px;" onchange="toggleRoundInput(this)">
-                        <option value="25">25</option><option value="50">50</option><option value="75">75</option>
-                        <option value="100">100</option><option value="150">150</option><option value="200">200</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="75">75</option>
+                        <option value="100">100</option>
+                        <option value="150">150</option>
+                        <option value="200">200</option>
                         <option value="custom">직접 입력...</option>
                     </select>
                     <span id="customRoundArea" style="display: none;">
@@ -130,28 +492,35 @@
                     <br><br>
                     <span>라운드 시간 </span>
                     <select id="timeSelect" class="input-style" style="width: 200px;">
-                        <option value="15">15초</option><option value="30" selected>30초</option>
-                        <option value="45">45초</option><option value="60">60초</option>
+                        <option value="15">15초</option>
+                        <option value="30" selected>30초</option>
+                        <option value="45">45초</option>
+                        <option value="60">60초</option>
                     </select>
                     <br><br>
                     <span>힌트 </span>
                     <select id="hintOnOffSelect" class="input-style" style="width: 200px;">
-                        <option value="off">끄기</option><option value="on">켜기</option>
+                        <option value="off">끄기</option>
+                        <option value="on">켜기</option>
                     </select>
                     <br><br>
                     <span>스킵 투표율 </span>
                     <select id="skipVoteRatioSelect" class="input-style" style="width: 200px;">
-                        <option value="noSkip">스킵 없음</option><option value="overHalf" selected>과반수 이상</option><option value="all">전부</option>
+                        <option value="noSkip">스킵 없음</option>
+                        <option value="overHalf" selected>과반수 이상</option>
+                        <option value="all">전부</option>
                     </select>
                     <br><br>
                     <span>채팅모드 </span>
                     <select id="chatModeSelect" class="input-style" style="width: 200px;">
-                        <option value="separated">정답자 채팅 분리</option><option value="censored">정답 검열</option>
+                        <option value="separated">정답자 채팅 분리</option>
+                        <option value="censored">정답 검열</option>
                     </select>
                     <br><br>
                     <span>장르 선택 </span>
                     <select id="genreSelect" class="input-style" style="width: 200px;">
-                        <option value="random" selected>랜덤</option><option value="jpop">J-POP</option>
+                        <option value="random" selected>랜덤</option>
+                        <option value="jpop">J-POP</option>
                     </select>
                     <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">
                         ※ K-POP, POP 등 장르 추후 업데이트 예정
@@ -180,6 +549,13 @@
             <div id="youtube-container"><div id="player"></div></div>
             <div id="answerDisplay">정답: ???</div>
             <div id="centerInstruction">시작을 기다리고 있습니다...</div>
+        </div>
+
+        <div id="gameResultView" class="game-view">
+            <h1 style="color: white; margin-bottom: 50px;">🎮 게임 종료!</h1>
+            <div id="finalRankDisplay"></div>
+            <br><br>
+            <button class="start-btn" onclick="requestBackToLobby()">로비로 돌아가기</button>
         </div>
     </main>
 
@@ -210,16 +586,22 @@
         ];
 
         window.onload = function() {
-            if(!myNickname) { alert("로그인 정보가 없습니다."); location.href='/'; return; }
+            if (!myNickname) {
+                alert("로그인 정보가 없습니다.");
+                location.href = '/';
+                return;
+            }
             document.getElementById('volumeSlider').value = globalVolume;
             document.getElementById('volumeValue').innerText = globalVolume;
-            
+
             if (!currentRoomCode && isHost) {
-                fetch('/generate-code').then(res=>res.json()).then(data => {
-                    currentRoomCode = data.roomCode;
-                    history.pushState(null, null, `?room=${currentRoomCode}`);
-                    initRoom();
-                });
+                fetch('/generate-code')
+                    .then(res => res.json())
+                    .then(data => {
+                        currentRoomCode = data.roomCode;
+                        history.pushState(null, null, `?room=${currentRoomCode}`);
+                        initRoom();
+                    });
             } else {
                 initRoom();
             }
@@ -228,27 +610,55 @@
         function initRoom() {
             document.getElementById('roomCodeDisplay').innerText = currentRoomCode;
             setupUI();
-            
+
             const savedData = sessionStorage.getItem("customProblems");
             const editor = document.getElementById('jsonEditor');
             if (isHost) {
                 if (savedData && savedData !== "[]") {
-                    try { editor.value = JSON.stringify(JSON.parse(savedData), null, 2); } 
-                    catch(e){ editor.value = JSON.stringify(defaultTemplate, null, 2); }
+                    try {
+                        editor.value = JSON.stringify(JSON.parse(savedData), null, 2);
+                    } catch (e) {
+                        editor.value = JSON.stringify(defaultTemplate, null, 2);
+                    }
                 } else {
                     editor.value = JSON.stringify(defaultTemplate, null, 2);
                 }
             }
-            
             socket.emit('join_room', { nickname: myNickname, roomCode: currentRoomCode });
         }
 
-        // 화면 전환 로직 (SPA 방식)
+        // 로비 뷰 전환
+        function switchToLobbyView() {
+            document.getElementById('lobbyLeft').style.display = 'block';
+            document.getElementById('gameLeft').style.display = 'none';
+            document.getElementById('lobbyView').style.display = 'block';
+            document.getElementById('gameView').style.display = 'none';
+            document.getElementById('gameResultView').style.display = 'none';
+            document.getElementById('mainSection').style.backgroundColor = '#f0f2f5';
+            document.getElementById('skipBtn').style.display = 'none';
+            
+            if (isPlayerReady && player && player.stopVideo) player.stopVideo();
+        }
+
+        // 게임 결과 뷰 전환
+        function switchToResultView(ranks) {
+            document.getElementById('lobbyView').style.display = 'none';
+            document.getElementById('gameView').style.display = 'none';
+            document.getElementById('gameResultView').style.display = 'flex';
+            document.getElementById('mainSection').style.backgroundColor = '#2c3e50';
+            
+            const display = document.getElementById('finalRankDisplay');
+            display.innerHTML = ranks.slice(0, 3).map((p, i) => {
+                return `<h2 class="rank-${i+1}">#${i+1} ${p.nickname} (${p.score}점)</h2>`;
+            }).join('');
+        }
+
         function switchToGameView() {
             document.getElementById('lobbyLeft').style.display = 'none';
             document.getElementById('gameLeft').style.display = 'block';
             document.getElementById('lobbyView').style.display = 'none';
             document.getElementById('gameView').style.display = 'flex';
+            document.getElementById('gameResultView').style.display = 'none';
             document.getElementById('skipBtn').style.display = 'block';
             document.getElementById('mainSection').style.backgroundColor = '#2c3e50';
             document.getElementById('timerDisplay').style.display = 'block';
@@ -256,28 +666,38 @@
         }
 
         function setupUI() {
-            const startBtn = document.getElementById('startBtn'), guestMsg = document.getElementById('guestMsg'), hostBtns = document.getElementById('hostOnlyButtons');
+            const startBtn = document.getElementById('startBtn');
+            const guestMsg = document.getElementById('guestMsg');
+            const hostBtns = document.getElementById('hostOnlyButtons');
+
             if (isHost) {
-                document.querySelectorAll('#basicSettings select, #basicSettings input, #customViewer textarea').forEach(el => el.disabled = false);
-                if(startBtn) startBtn.style.display = 'inline-block';
-                if(guestMsg) guestMsg.style.display = 'none';
-                if(hostBtns) hostBtns.style.display = 'block';
+                document.querySelectorAll('#basicSettings select, #basicSettings input, #customViewer textarea')
+                    .forEach(el => el.disabled = false);
+                if (startBtn) startBtn.style.display = 'inline-block';
+                if (guestMsg) guestMsg.style.display = 'none';
+                if (hostBtns) hostBtns.style.display = 'block';
             } else {
-                document.querySelectorAll('#basicSettings select, #basicSettings input, #customViewer textarea').forEach(el => el.disabled = true);
-                if(startBtn) startBtn.style.display = 'none';
-                if(guestMsg) guestMsg.style.display = 'block';
-                if(hostBtns) hostBtns.style.display = 'none';
+                document.querySelectorAll('#basicSettings select, #basicSettings input, #customViewer textarea')
+                    .forEach(el => el.disabled = true);
+                if (startBtn) startBtn.style.display = 'none';
+                if (guestMsg) guestMsg.style.display = 'block';
+                if (hostBtns) hostBtns.style.display = 'none';
             }
         }
 
-        // 소켓 이벤트 처리
         socket.on('chat_message', (data) => {
             const list = document.getElementById('chatList');
             const li = document.createElement('li');
-            if (data.type === 'system') { li.className = 'chat-system'; li.innerText = data.msg; }
-            else if (data.type === 'chat_gray') { li.className = 'chat-gray'; li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
-            else if (data.type === 'chat_html') { li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
-            else {
+
+            if (data.type === 'system') {
+                li.className = 'chat-system';
+                li.innerText = data.msg;
+            } else if (data.type === 'chat_gray') {
+                li.className = 'chat-gray';
+                li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
+            } else if (data.type === 'chat_html') {
+                li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
+            } else {
                 if (data.nickname === myNickname) li.className = 'chat-me';
                 li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
             }
@@ -286,19 +706,39 @@
         });
 
         socket.on('user_joined', (data) => {
-            if (data.inGame) switchToGameView();
+            if (data.inGame && document.getElementById('lobbyView').style.display !== 'none') {
+                switchToGameView();
+            }
+            
             document.getElementById('userCount').innerText = `(${data.currentCount}/${data.maxCount})`;
+            
+            // 로비의 유저 목록 업데이트 (AFK 체크)
             const list = document.getElementById('userList');
             list.innerHTML = data.users.map(u => {
                 const isMe = u.nickname === myNickname;
+                const isAfk = u.status !== 'lobby'; // 로비에 없으면 AFK
                 const canKick = isHost && !isMe;
                 const kickBtn = canKick ? `<button class="kick-btn" onclick="kickPlayer('${u.id}')">퇴장</button>` : '';
-                return `<li><span class="${isMe ? 'me' : ''}">${(u.id === data.hostId ? "👑 " : "") + u.nickname}</span>${kickBtn}</li>`;
+                return `<li><span class="${isMe ? 'me' : ''} ${isAfk ? 'status-afk' : ''}">${(u.id === data.hostId ? "👑 " : "") + u.nickname}</span>${kickBtn}</li>`;
             }).join('');
+            
+            // 모든 사람이 로비에 있는지 확인하여 시작 버튼 활성화/비활성화
+            if (isHost) {
+                const allReady = data.users.every(u => u.status === 'lobby');
+                document.getElementById('startBtn').disabled = !allReady;
+                if (!allReady) {
+                    document.getElementById('startBtn').innerText = "대기 중...";
+                } else {
+                    document.getElementById('startBtn').innerText = "🔥 게임 시작";
+                }
+            }
+
             updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId);
         });
 
-        socket.on('game_started', () => { switchToGameView(); });
+        socket.on('game_started', () => {
+            switchToGameView();
+        });
 
         socket.on('round_start', (data) => {
             isRoundEnded = false;
@@ -311,9 +751,16 @@
             document.getElementById('roundDisplay').innerText = `Round ${data.round} / ${data.totalRounds}`;
             document.getElementById('skipBtn').innerText = `⏭️ 스킵 투표 (0/${data.requiredSkip})`;
             document.getElementById('skipBtn').disabled = false;
-            totalTime = data.timeLimit; currentHint = data.hint; currentRoundStartTime = Number(data.startTime);
+
+            totalTime = data.timeLimit;
+            currentHint = data.hint;
+            currentRoundStartTime = Number(data.startTime);
+
             if (isPlayerReady && player && player.loadVideoById) {
-                player.loadVideoById({ videoId: extractVideoID(data.link), startSeconds: currentRoundStartTime });
+                player.loadVideoById({
+                    videoId: extractVideoID(data.link),
+                    startSeconds: currentRoundStartTime
+                });
                 player.setVolume(globalVolume);
             }
         });
@@ -333,75 +780,116 @@
             document.getElementById('answerDisplay').innerText = `정답: ${data.answer.split(',')[0]}`;
             document.getElementById('answerDisplay').style.display = 'block';
             document.getElementById('skipBtn').disabled = true;
-            if (isPlayerReady && player) { player.seekTo(currentRoundStartTime, true); player.playVideo(); }
+
+            if (isPlayerReady && player) {
+                player.seekTo(currentRoundStartTime, true);
+                player.playVideo();
+            }
             updateScoreBoard(data.scores, data.hostId);
+        });
+
+        socket.on('game_over', (data) => {
+            switchToResultView(data.ranks);
         });
 
         socket.on('correct_answer', (data) => {
             const list = document.getElementById('chatList');
-            const li = document.createElement('li'); li.className = 'chat-correct';
+            const li = document.createElement('li');
+            li.className = 'chat-correct';
             li.innerText = `🎉 ${data.nickname} 정답!`;
             list.appendChild(li);
             list.scrollTop = list.scrollHeight;
         });
 
-        socket.on('update_score', (data) => updateScoreBoard(data.players, data.hostId));
-
-        socket.on('change_host', (data) => { 
-            if(socket.id === data.newHostId) { isHost = true; sessionStorage.setItem("isHost", "true"); setupUI(); alert("👑 방장이 되었습니다!"); } 
+        socket.on('update_score', (data) => {
+            updateScoreBoard(data.players, data.hostId);
         });
 
-        socket.on('kicked', () => { alert("방장에 의해 퇴장 처리되었습니다."); location.href = '/'; });
-        socket.on('room_not_found', () => { alert("방을 찾을 수 없습니다."); location.href = '/'; });
+        socket.on('change_host', (data) => {
+            if (socket.id === data.newHostId) {
+                isHost = true;
+                sessionStorage.setItem("isHost", "true");
+                setupUI();
+                alert("👑 방장이 되었습니다!");
+            }
+        });
 
-        // 지원 함수들
+        socket.on('kicked', () => {
+            alert("방장에 의해 퇴장 처리되었습니다.");
+            location.href = '/';
+        });
+
+        socket.on('room_not_found', () => {
+            alert("방을 찾을 수 없습니다.");
+            location.href = '/';
+        });
+
+        function requestBackToLobby() {
+            socket.emit('back_to_lobby');
+            switchToLobbyView();
+        }
+
         function startGame() {
-            const rounds = document.getElementById('roundsSelect').value === 'custom' ? document.getElementById('roundsInput').value : document.getElementById('roundsSelect').value;
+            const rounds = document.getElementById('roundsSelect').value === 'custom' 
+                ? document.getElementById('roundsInput').value 
+                : document.getElementById('roundsSelect').value;
+
             fetch('/update-room-settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    roomCode: currentRoomCode, rounds, time: document.getElementById('timeSelect').value,
-                    hint: document.getElementById('hintOnOffSelect').value, skipVoteRatio: document.getElementById('skipVoteRatioSelect').value,
-                    chatMode: document.getElementById('chatModeSelect').value, customList: JSON.parse(document.getElementById('jsonEditor').value || "[]"),
+                    roomCode: currentRoomCode,
+                    rounds: rounds,
+                    time: document.getElementById('timeSelect').value,
+                    hint: document.getElementById('hintOnOffSelect').value,
+                    skipVoteRatio: document.getElementById('skipVoteRatioSelect').value,
+                    chatMode: document.getElementById('chatModeSelect').value,
+                    customList: JSON.parse(document.getElementById('jsonEditor').value || "[]"),
                     genre: document.getElementById('genreSelect').value
                 })
+            }).then(res => res.json()).then(data => {
+                if (data.msg) alert(data.msg);
             });
         }
 
-        function onYouTubeIframeAPIReady() { 
-            player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'autoplay': 1, 'controls': 0 }, events: { 'onReady': () => isPlayerReady = true } });
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                playerVars: { 'autoplay': 1, 'controls': 0 },
+                events: { 'onReady': () => { isPlayerReady = true; } }
+            });
         }
 
-        function extractVideoID(url) { const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); return (m && m[7].length == 11) ? m[7] : false; }
-        
+        function extractVideoID(url) {
+            const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/);
+            return (m && m[7].length == 11) ? m[7] : false;
+        }
+
         function updateScoreBoard(players, hostId) {
             const board = document.getElementById('scoreBoard');
-            if(!board) return;
-            board.innerHTML = players.sort((a,b) => b.score - a.score).map((p,i) => {
+            if (!board) return;
+            board.innerHTML = players.sort((a, b) => b.score - a.score).map((p, i) => {
                 const isMe = p.nickname === myNickname;
                 const canKick = isHost && !isMe;
                 const kickBtn = canKick ? `<button class="kick-btn-sm" onclick="kickPlayer('${p.id}')">❌</button>` : '';
-                return `<div class="player-row ${isMe ? 'me' : ''}"><span>${i+1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${kickBtn}</span><span>${p.score || 0}</span></div>`;
+                return `<div class="player-row ${isMe ? 'me' : ''}"><span>${i + 1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}${kickBtn}</span><span>${p.score || 0}</span></div>`;
             }).join('');
         }
 
-        function kickPlayer(id) { if(confirm("해당 플레이어를 퇴장시키겠습니까?")) socket.emit('kick_player', id); }
+        function kickPlayer(id) { if (confirm("해당 플레이어를 퇴장시키겠습니까?")) socket.emit('kick_player', id); }
         function voteSkip() { if (!isRoundEnded) socket.emit('vote_skip'); document.getElementById('skipBtn').disabled = true; }
         function openSettings() { document.getElementById('volumeSlider').value = globalVolume; document.getElementById('volumeValue').innerText = globalVolume; document.getElementById('settingsModal').style.display = 'flex'; }
         function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
         function saveVolume(val) { globalVolume = val; document.getElementById('volumeValue').innerText = val; localStorage.setItem('gameVolume', val); if (isPlayerReady && player && player.setVolume) player.setVolume(val); }
         function copyRoomCode() { navigator.clipboard.writeText(currentRoomCode); alert("복사완료"); }
-        function toggleRoundInput(sel) { if(sel.value === 'custom') { sel.style.display = 'none'; document.getElementById('customRoundArea').style.display = 'inline-block'; } }
+        function toggleRoundInput(sel) { if (sel.value === 'custom') { sel.style.display = 'none'; document.getElementById('customRoundArea').style.display = 'inline-block'; } }
         function resetRoundInput() { document.getElementById('customRoundArea').style.display = 'none'; document.getElementById('roundsSelect').style.display = 'inline-block'; document.getElementById('roundsSelect').value = '25'; }
         function toggleView() { const basic = document.getElementById('basicSettings'), custom = document.getElementById('customViewer'), btn = document.getElementById('toggleBtn'), isNone = custom.style.display === 'none'; custom.style.display = isNone ? 'block' : 'none'; basic.style.display = isNone ? 'none' : 'block'; btn.innerText = isNone ? "기본 설정으로 돌아가기" : "커스텀 문제 확인"; }
         async function copyJsonToClipboard() { await navigator.clipboard.writeText(document.getElementById('jsonEditor').value); alert("복사완료"); }
         function importFromFile(i) { const r = new FileReader(); r.onload = e => { document.getElementById('jsonEditor').value = JSON.stringify(JSON.parse(e.target.result), null, 2); }; r.readAsText(i.files[0]); }
-        function exportToJson() { const blob = new Blob([document.getElementById('jsonEditor').value], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my_quiz_data.json'; a.click(); }
-
-        document.getElementById('chatInput').addEventListener('keypress', (e) => { 
-            if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } 
-        });
+        function exportToJson() { const blob = new Blob([document.getElementById('jsonEditor').value], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'my_quiz_data.json'; a.click(); }
+        document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } });
     </script>
 </body>
 </html>
