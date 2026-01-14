@@ -12,7 +12,9 @@
         .user-list-title { border-bottom: 1px solid #7f8c8d; padding-bottom: 10px; margin-bottom: 10px; font-size: 18px;}
         #userList { list-style: none; padding: 0; overflow-y: auto; flex-grow: 1; }
         #userList li { padding: 10px; border-bottom: 1px solid #34495e; display: flex; justify-content: space-between; align-items: center; }
-        #userList li.me { color: #2ecc71; font-weight: bold; }
+        
+        /* 유저리스트 본인 하이라이트 */
+        #userList li .me { color: #2ecc71 !important; font-weight: bold; }
         
         .content { flex-grow: 1; background-color: #f0f2f5; padding: 40px; overflow-y: auto; text-align: center; }
         
@@ -21,6 +23,10 @@
         #chatList { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; background-color: #222; }
         #chatList li { padding: 4px 0; font-size: 14px; color: #ddd; word-wrap: break-word; }
         #chatList li b { color: white; }
+        
+        /* 채팅창 본인 이름만 초록색, 채팅은 흰색(기본) */
+        .chat-me { color: #ddd !important; }
+        .chat-me b { color: #2ecc71 !important; }
         
         .chat-system { color: #f39c12 !important; font-weight: bold; text-align: center; }
         .chat-input-bar { padding: 10px; background: #34495e; display: flex; }
@@ -208,10 +214,14 @@
         socket.on('chat_message', (data) => {
             const list = document.getElementById('chatList');
             const li = document.createElement('li');
+            
             if (data.type === 'system') { 
                 li.className = 'chat-system'; 
                 li.innerText = data.msg; 
-            } else { 
+            } else {
+                if (data.nickname === myNickname) {
+                    li.className = 'chat-me';
+                }
                 li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; 
             }
             list.appendChild(li);
@@ -240,7 +250,6 @@
             location.href = '/';
         });
 
-        // 존재하지 않는 방 코드일 경우 처리
         socket.on('room_not_found', () => {
             alert("방을 찾을 수 없습니다.");
             location.href = '/';
