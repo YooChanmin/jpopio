@@ -163,7 +163,7 @@
             sessionStorage.setItem("nickname", name);
             sessionStorage.setItem("customProblems", JSON.stringify(customProblems));
             sessionStorage.setItem("isHost", "true"); 
-            window.location.href = '/createRoom';
+            window.location.href = '/room'; // room으로 통일
         }
 
         function joinRoom() {
@@ -172,7 +172,7 @@
             if(!name || !code) { alert("닉네임과 코드를 입력해주세요!"); return; }
             sessionStorage.setItem("nickname", name);
             sessionStorage.setItem("isHost", "false");
-            window.location.href = `/createRoom?room=${code}`;
+            window.location.href = `/room?room=${code}`; // room으로 통일
         }
 
         function toggleEditMode() {

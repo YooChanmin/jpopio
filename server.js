@@ -11,10 +11,9 @@ app.use(express.json());
 const MAX_PLAYERS = 12;
 
 app.get('/', (req, res) => res.sendFile(__dirname + '/public/index.html'));
-app.get('/createRoom', (req, res) => res.sendFile(__dirname + '/public/createRoom.html'));
-app.get('/inGame', (req, res) => res.sendFile(__dirname + '/public/inGame.html'));
+// 방 설정과 게임 플레이를 하나의 파일에서 처리합니다.
+app.get('/room', (req, res) => res.sendFile(__dirname + '/public/room.html'));
 
-// 문제 데이터 검증 및 예시 데이터(Example) 제거
 function validateQuestionPool(pool) {
     const targetArray = Array.isArray(pool) ? pool : (pool && pool.questions ? pool.questions : []);
     if (!Array.isArray(targetArray)) return [];
@@ -22,11 +21,9 @@ function validateQuestionPool(pool) {
     return targetArray.filter(item => {
         const hasLink = item.link && (item.link.includes('youtu.be') || item.link.includes('youtube.com'));
         const hasAnswer = item.answer && item.answer.toString().trim().length > 0;
-        
         const isNotExample = item.isExample !== true && 
                              item.isExample !== 'true' &&
                              !JSON.stringify(item).toLowerCase().includes('example');
-
         return hasLink && hasAnswer && isNotExample;
     });
 }
@@ -226,7 +223,6 @@ io.on('connection', (socket) => {
         const roomCode = rawCode ? rawCode.toUpperCase() : "";
         const room = rooms[roomCode];
         
-        // 잘못된 방 코드 처리
         if (!room) {
             socket.emit('room_not_found');
             return;
@@ -266,7 +262,8 @@ io.on('connection', (socket) => {
             users: room.players.map(p => ({ id: p.id, nickname: p.nickname })),
             currentCount: room.players.length, 
             maxCount: MAX_PLAYERS, 
-            hostId: room.hostId
+            hostId: room.hostId,
+            inGame: room.inGame // 현재 게임 중인지 여부 전달
         });
     });
 
@@ -373,7 +370,8 @@ io.on('connection', (socket) => {
             users: room.players.map(p => ({ id: p.id, nickname: p.nickname })),
             currentCount: room.players.length, 
             maxCount: MAX_PLAYERS, 
-            hostId: room.hostId
+            hostId: room.hostId,
+            inGame: room.inGame
         });
         
         if (room.players.length === 0) {
