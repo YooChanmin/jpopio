@@ -47,7 +47,7 @@
 <body>
     <div class="control-btns-wrapper">
         <button id="settingsBtn" class="control-btn" onclick="openSettings()">⚙️ 환경설정</button>
-        <button id="skipBtn" class="control-btn" onclick="voteSkip()">⏭️ 스킵 투표</button>
+        <button id="skipBtn" class="control-btn" onclick="voteSkip()">⏭️ 스킵 투표 (0/0)</button>
     </div>
 
     <div id="settingsModal" onclick="closeSettings(event)">
@@ -87,13 +87,26 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const socket = io();
-        const params = new URLSearchParams(window.location.search), roomCode = params.get('room'), nickname = sessionStorage.getItem("nickname");
+        const params = new URLSearchParams(window.location.search);
+        const roomCode = params.get('room');
+        const nickname = sessionStorage.getItem("nickname");
+        
         let player, isPlayerReady = false, isRoundEnded = false, totalTime = 0, currentHint = null, globalVolume = localStorage.getItem('gameVolume') || 50;
+        let currentRoundStartTime = 0;
 
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function openSettings() { 
+            // 모달 열 때 현재 설정된 볼륨 값 동기화
+            document.getElementById('volumeSlider').value = globalVolume;
+            document.getElementById('volumeValue').innerText = globalVolume;
+            document.getElementById('settingsModal').style.display = 'flex'; 
+        }
+
         function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
+        
         function saveVolume(val) {
-            globalVolume = val; document.getElementById('volumeValue').innerText = val; localStorage.setItem('gameVolume', val);
+            globalVolume = val; 
+            document.getElementById('volumeValue').innerText = val; 
+            localStorage.setItem('gameVolume', val);
             if (isPlayerReady && player && player.setVolume) player.setVolume(val);
         }
 
@@ -101,30 +114,38 @@
             isRoundEnded = false;
             document.getElementById('waitingScreen').style.display = 'none';
             const inst = document.getElementById('centerInstruction');
-            if(inst) { inst.innerText = "노래를 듣고 정답을 입력하세요!"; inst.style.display = 'block'; }
+            if(inst) { 
+                inst.innerText = "노래를 듣고 정답을 입력하세요!"; 
+                inst.style.display = 'block'; 
+            }
             document.getElementById('youtube-container').classList.remove('show');
             document.getElementById('answerDisplay').style.display = 'none';
             document.getElementById('hintBox').style.display = 'none';
             document.getElementById('roundDisplay').innerText = `Round ${data.round} / ${data.totalRounds}`;
-            totalTime = data.timeLimit; currentHint = data.hint;
+            document.getElementById('skipBtn').innerText = `⏭️ 스킵 투표 (0/${data.requiredSkip})`;
             document.getElementById('skipBtn').disabled = false;
+            
+            totalTime = data.timeLimit; 
+            currentHint = data.hint; 
+            currentRoundStartTime = Number(data.startTime);
+
             if (isPlayerReady && player && player.loadVideoById) {
-                player.loadVideoById({ videoId: extractVideoID(data.link), startSeconds: Number(data.startTime) });
+                player.loadVideoById({ 
+                    videoId: extractVideoID(data.link), 
+                    startSeconds: currentRoundStartTime 
+                });
                 player.setVolume(globalVolume);
             }
         }
 
-        socket.on('chat_message', (data) => {
-            const li = document.createElement('li');
-            if (data.type === 'system') { li.className = 'chat-system'; li.innerText = data.msg; }
-            else if (data.type === 'chat_gray') { li.className = 'chat-gray'; li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
-            else if (data.type === 'chat_html') { li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
-            else { li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
-            document.getElementById('chatList').appendChild(li);
-            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
+        socket.on('round_start', (data) => {
+            updateUIForRound(data);
         });
 
-        socket.on('round_start', (data) => updateUIForRound(data));
+        socket.on('skip_update', (data) => { 
+            document.getElementById('skipBtn').innerText = `⏭️ 스킵 투표 (${data.current}/${data.required})`; 
+        });
+
         socket.on('timer_update', (timeLeft) => {
             document.getElementById('timerDisplay').innerText = timeLeft;
             if (currentHint && timeLeft <= (totalTime / 2)) {
@@ -135,37 +156,93 @@
 
         socket.on('round_end', (data) => {
             isRoundEnded = true;
-            if(document.getElementById('centerInstruction')) document.getElementById('centerInstruction').style.display = 'none';
+            if(document.getElementById('centerInstruction')) {
+                document.getElementById('centerInstruction').style.display = 'none';
+            }
             document.getElementById('youtube-container').classList.add('show');
             document.getElementById('answerDisplay').innerText = `정답: ${data.answer.split(',')[0]}`;
             document.getElementById('answerDisplay').style.display = 'block';
             document.getElementById('skipBtn').disabled = true;
+            
+            if (isPlayerReady && player) { 
+                player.seekTo(currentRoundStartTime, true); 
+                player.playVideo(); 
+            }
             updateScoreBoard(data.scores, data.hostId);
         });
 
-        socket.on('user_joined', (data) => updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId));
-        socket.on('update_score', (data) => updateScoreBoard(data.players, data.hostId));
+        socket.on('chat_message', (data) => {
+            const li = document.createElement('li');
+            if (data.type === 'system') { 
+                li.className = 'chat-system'; 
+                li.innerText = data.msg; 
+            } else if (data.type === 'chat_gray') { 
+                li.className = 'chat-gray'; 
+                li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; 
+            } else if (data.type === 'chat_html') { 
+                li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; 
+            } else { 
+                li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; 
+            }
+            document.getElementById('chatList').appendChild(li);
+            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
+        });
+
         socket.on('correct_answer', (data) => {
-            const li = document.createElement('li'); li.className = 'chat-correct';
+            const li = document.createElement('li'); 
+            li.className = 'chat-correct';
             li.innerText = `🎉 ${data.nickname} 정답!`;
             document.getElementById('chatList').appendChild(li);
             document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
         });
 
+        socket.on('user_joined', (data) => {
+            updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId);
+        });
+
+        socket.on('update_score', (data) => {
+            updateScoreBoard(data.players, data.hostId);
+        });
+
         function onYouTubeIframeAPIReady() { 
-            player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'autoplay': 1, 'controls': 0 }, events: { 'onReady': () => { isPlayerReady = true; } } });
+            player = new YT.Player('player', { 
+                height: '100%', 
+                width: '100%', 
+                playerVars: { 'autoplay': 1, 'controls': 0 }, 
+                events: { 
+                    'onReady': () => { isPlayerReady = true; } 
+                } 
+            });
         }
 
-        function extractVideoID(url) { const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); return (m && m[7].length == 11) ? m[7] : false; }
+        function extractVideoID(url) { 
+            const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); 
+            return (m && m[7].length == 11) ? m[7] : false; 
+        }
+
         function updateScoreBoard(players, hostId) {
-            document.getElementById('scoreBoard').innerHTML = players.sort((a,b)=>b.score-a.score).map((p,i) => `
+            const board = document.getElementById('scoreBoard');
+            board.innerHTML = players.sort((a,b) => b.score - a.score).map((p,i) => `
                 <div class="player-row ${p.nickname === nickname ? 'me' : ''}">
                     <span>${i+1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}</span>
                     <span>${p.score}</span>
                 </div>`).join('');
         }
-        function voteSkip() { if (!isRoundEnded) socket.emit('vote_skip'); document.getElementById('skipBtn').disabled = true; }
-        document.getElementById('chatInput').addEventListener('keypress', (e) => { if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } });
+
+        function voteSkip() { 
+            if (!isRoundEnded) {
+                socket.emit('vote_skip'); 
+            }
+            document.getElementById('skipBtn').disabled = true; 
+        }
+
+        document.getElementById('chatInput').addEventListener('keypress', (e) => { 
+            if(e.key === 'Enter' && e.target.value.trim()) { 
+                socket.emit('send_chat', e.target.value.trim()); 
+                e.target.value = ''; 
+            } 
+        });
+
         if (roomCode && nickname) socket.emit('join_room', { nickname, roomCode });
     </script>
 </body>
