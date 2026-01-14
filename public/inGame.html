@@ -19,21 +19,23 @@
         #player { width: 100%; height: 100%; }
         #answerDisplay { font-size: 50px; color: #f1c40f; font-weight: bold; display: none; margin-bottom:10px; }
         #hintBox { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 24px; color: #3498db; background: rgba(0,0,0,0.8); padding: 12px 30px; border-radius: 30px; display: none; z-index: 500; border: 1px solid #3498db; }
-        
-        /* 중앙 안내 문구 강제 관리 */
         #centerInstruction { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: bold; color: white; text-align: center; width: 100%; pointer-events: none; z-index: 400; }
         
         .right-panel { width: 300px; background-color: #222; display: flex; flex-direction: column; border-left: 1px solid #444; flex-shrink: 0; }
         .chat-header { padding: 15px; background: #333; text-align: center; font-weight: bold; }
         #chatList { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; background-color: #1a1a1a; }
         #chatList li { padding: 4px 0; font-size: 14px; word-wrap: break-word; color: #ddd; }
-        .chat-correct { color: #2ecc71; font-weight: bold; text-align: center; }
+        
+        .chat-system { color: #f39c12 !important; font-weight: bold; text-align: center; }
+        .chat-correct { color: #2ecc71 !important; font-weight: bold; text-align: center; }
+        .chat-gray { color: #888 !important; }
+        .chat-gray-word { color: #888; }
+        
         .input-bar { padding: 10px; background: #333; }
         #chatInput { width: 100%; padding: 10px; border: none; border-radius: 4px; font-size: 14px; background: #eee; outline: none; box-sizing: border-box; color: #333; }
         
-        /* 버튼 위치: 채팅창 바로 왼쪽(310px) 상단 고정 */
         .control-btns-wrapper { position: fixed; top: 10px; right: 310px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; align-items: flex-end; }
-        .control-btn { color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); width: auto; white-space: nowrap; }
+        .control-btn { color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         #settingsBtn { background: rgba(52, 73, 94, 0.9); border: 1px solid #7f8c8d; }
         #skipBtn { background-color: #3498db; }
         #skipBtn:disabled { background-color: #555; cursor: not-allowed; }
@@ -64,7 +66,7 @@
     
     <div class="left-panel">
         <div class="timer-box" id="timerDisplay">--</div>
-        <div class="round-info" id="roundDisplay">준비 중</div>
+        <div id="roundDisplay">준비 중</div>
         <h3>🏆 점수판</h3>
         <div class="score-board" id="scoreBoard"></div>
     </div>
@@ -85,107 +87,86 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const socket = io();
-        const params = new URLSearchParams(window.location.search);
-        const roomCode = params.get('room'), nickname = sessionStorage.getItem("nickname");
-        
-        let player, isPlayerReady = false, isRoundEnded = false;
-        let currentRoundStartTime = 0, totalRoundTime = 0, pendingHint = null;
-        let globalVolume = localStorage.getItem('gameVolume') || 50;
+        const params = new URLSearchParams(window.location.search), roomCode = params.get('room'), nickname = sessionStorage.getItem("nickname");
+        let player, isPlayerReady = false, isRoundEnded = false, totalTime = 0, currentHint = null, globalVolume = localStorage.getItem('gameVolume') || 50;
 
         function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
         function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
         function saveVolume(val) {
-            globalVolume = val;
-            document.getElementById('volumeValue').innerText = val;
-            localStorage.setItem('gameVolume', val);
+            globalVolume = val; document.getElementById('volumeValue').innerText = val; localStorage.setItem('gameVolume', val);
             if (isPlayerReady && player && player.setVolume) player.setVolume(val);
         }
 
         function updateUIForRound(data) {
             isRoundEnded = false;
             document.getElementById('waitingScreen').style.display = 'none';
-            // 중앙 안내 문구 강제 삭제
             const inst = document.getElementById('centerInstruction');
-            if(inst) inst.style.display = 'none';
-            
+            if(inst) { inst.innerText = "노래를 듣고 정답을 입력하세요!"; inst.style.display = 'block'; }
             document.getElementById('youtube-container').classList.remove('show');
             document.getElementById('answerDisplay').style.display = 'none';
             document.getElementById('hintBox').style.display = 'none';
-            
             document.getElementById('roundDisplay').innerText = `Round ${data.round} / ${data.totalRounds}`;
-            pendingHint = data.hint; totalRoundTime = data.timeLimit;
-            currentRoundStartTime = Number(data.startTime);
+            totalTime = data.timeLimit; currentHint = data.hint;
             document.getElementById('skipBtn').disabled = false;
-
             if (isPlayerReady && player && player.loadVideoById) {
-                player.loadVideoById({ videoId: extractVideoID(data.link), startSeconds: currentRoundStartTime });
+                player.loadVideoById({ videoId: extractVideoID(data.link), startSeconds: Number(data.startTime) });
                 player.setVolume(globalVolume);
             }
         }
 
-        socket.on('sync_game_state', (data) => updateUIForRound(data));
+        socket.on('chat_message', (data) => {
+            const li = document.createElement('li');
+            if (data.type === 'system') { li.className = 'chat-system'; li.innerText = data.msg; }
+            else if (data.type === 'chat_gray') { li.className = 'chat-gray'; li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
+            else if (data.type === 'chat_html') { li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
+            else { li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
+            document.getElementById('chatList').appendChild(li);
+            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
+        });
+
         socket.on('round_start', (data) => updateUIForRound(data));
         socket.on('timer_update', (timeLeft) => {
             document.getElementById('timerDisplay').innerText = timeLeft;
-            if (pendingHint && timeLeft <= (totalRoundTime / 2)) {
-                document.getElementById('hintText').innerText = pendingHint;
+            if (currentHint && timeLeft <= (totalTime / 2)) {
+                document.getElementById('hintText').innerText = currentHint;
                 document.getElementById('hintBox').style.display = 'block';
-                pendingHint = null;
             }
         });
 
         socket.on('round_end', (data) => {
             isRoundEnded = true;
-            document.getElementById('centerInstruction').style.display = 'none';
+            if(document.getElementById('centerInstruction')) document.getElementById('centerInstruction').style.display = 'none';
             document.getElementById('youtube-container').classList.add('show');
             document.getElementById('answerDisplay').innerText = `정답: ${data.answer.split(',')[0]}`;
             document.getElementById('answerDisplay').style.display = 'block';
             document.getElementById('skipBtn').disabled = true;
-            if (isPlayerReady && player && player.seekTo) player.seekTo(currentRoundStartTime, true);
             updateScoreBoard(data.scores, data.hostId);
         });
 
         socket.on('user_joined', (data) => updateScoreBoard(data.users.map(u => ({ id: u.id, nickname: u.nickname, score: 0 })), data.hostId));
         socket.on('update_score', (data) => updateScoreBoard(data.players, data.hostId));
-
-        function updateScoreBoard(players, hostId) {
-            const board = document.getElementById('scoreBoard');
-            board.innerHTML = players.sort((a, b) => b.score - a.score).map((p, i) => `
-                <div class="player-row ${p.nickname === nickname ? 'me' : ''}">
-                    <span>${i + 1}. ${p.id === hostId ? '👑 ' : ''}${p.nickname}</span>
-                    <span>${p.score}</span>
-                </div>
-            `).join('');
-        }
-
-        socket.on('chat_message', (data) => {
-            const li = document.createElement('li');
-            li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
-            document.getElementById('chatList').appendChild(li);
-            document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
-        });
-
         socket.on('correct_answer', (data) => {
-            const li = document.createElement('li');
-            li.className = 'chat-correct';
-            li.innerText = `🎉 ${data.nickname}님 정답!`;
+            const li = document.createElement('li'); li.className = 'chat-correct';
+            li.innerText = `🎉 ${data.nickname} 정답!`;
             document.getElementById('chatList').appendChild(li);
             document.getElementById('chatList').scrollTop = document.getElementById('chatList').scrollHeight;
         });
 
         function onYouTubeIframeAPIReady() { 
-            player = new YT.Player('player', { 
-                height: '100%', width: '100%', 
-                playerVars: { 'autoplay': 1, 'controls': 0, 'rel': 0 },
-                events: { 'onReady': (e) => { isPlayerReady = true; e.target.setVolume(globalVolume); } }
-            }); 
+            player = new YT.Player('player', { height: '100%', width: '100%', playerVars: { 'autoplay': 1, 'controls': 0 }, events: { 'onReady': () => { isPlayerReady = true; } } });
         }
 
+        function extractVideoID(url) { const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); return (m && m[7].length == 11) ? m[7] : false; }
+        function updateScoreBoard(players, hostId) {
+            document.getElementById('scoreBoard').innerHTML = players.sort((a,b)=>b.score-a.score).map((p,i) => `
+                <div class="player-row ${p.nickname === nickname ? 'me' : ''}">
+                    <span>${i+1}. ${(p.id === hostId ? "👑 " : "") + p.nickname}</span>
+                    <span>${p.score}</span>
+                </div>`).join('');
+        }
         function voteSkip() { if (!isRoundEnded) socket.emit('vote_skip'); document.getElementById('skipBtn').disabled = true; }
         document.getElementById('chatInput').addEventListener('keypress', (e) => { if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } });
-        function extractVideoID(url) { const m = url.match(/^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/); return (m && m[7].length == 11) ? m[7] : false; }
         if (roomCode && nickname) socket.emit('join_room', { nickname, roomCode });
-        else location.href = '/';
     </script>
 </body>
 </html>

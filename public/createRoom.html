@@ -21,27 +21,21 @@
         #chatList { flex-grow: 1; overflow-y: auto; list-style: none; padding: 10px; margin: 0; background-color: #222; }
         #chatList li { padding: 4px 0; font-size: 14px; color: #ddd; word-wrap: break-word; }
         #chatList li b { color: white; }
+        
+        .chat-system { color: #f39c12 !important; font-weight: bold; text-align: center; }
         .chat-input-bar { padding: 10px; background: #34495e; display: flex; }
         #chatInput { flex-grow: 1; padding: 10px; border: none; border-radius: 4px; font-size: 14px; outline: none; }
-        
-        .input-style { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
-        .textarea-style { width: 90%; height: 250px; padding: 10px; margin: 10px auto; display: block; }
         
         button { cursor: pointer; border-radius: 4px; border: 1px solid #999; padding: 8px 15px; margin: 5px; font-size: 14px; }
         .start-btn { padding: 15px 50px; font-size: 24px; background-color: #e74c3c; color: white; border: none; font-weight: bold; }
         .start-btn:disabled { background-color: #ccc; cursor: not-allowed; } 
         
-        .file-btn { background-color: #2196F3; color: white; border: none; }
-        .copy-btn { background-color: #9C27B0; color: white; border: none; }
-
-        .info-msg { color: #e67e22; font-size: 13px; margin: 10px 0; font-weight: bold; }
-
-        #settingsBtn { position: absolute; top: 15px; right: 320px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; transition: background 0.2s; }
-        #settingsBtn:hover { background: rgba(0,0,0,0.8); }
+        .input-style { padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+        .textarea-style { width: 90%; height: 250px; padding: 10px; margin: 10px auto; display: block; }
+        
+        #settingsBtn { position: absolute; top: 15px; right: 320px; background: rgba(0,0,0,0.5); border: 1px solid #7f8c8d; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; z-index: 300; font-size: 14px; }
         #settingsModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 400; justify-content: center; align-items: center; }
-        .modal-content { background: #34495e; color: white; padding: 25px; border-radius: 10px; width: 300px; text-align: center; border: 1px solid #7f8c8d; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        .slider-container { margin: 20px 0; }
-        input[type=range] { width: 100%; cursor: pointer; }
+        .modal-content { background: #34495e; color: white; padding: 25px; border-radius: 10px; width: 300px; text-align: center; border: 1px solid #7f8c8d; }
     </style>
 </head>
 <body>
@@ -51,11 +45,11 @@
     <div id="settingsModal" onclick="closeSettings(event)">
         <div class="modal-content">
             <h2 style="margin-top:0;">🔊 환경설정</h2>
-            <div class="slider-container">
-                <label for="volumeSlider">게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
-                <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)">
+            <div style="margin:20px 0;">
+                <label>게임 볼륨: <span id="volumeValue">50</span>%</label><br><br>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50" oninput="saveVolume(this.value)" style="width:100%;">
             </div>
-            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; cursor:pointer; background:#e74c3c; color:white; border:none; border-radius:5px;">닫기</button>
+            <button onclick="document.getElementById('settingsModal').style.display='none'" style="padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px;">닫기</button>
         </div>
     </div>
 
@@ -71,10 +65,8 @@
 
     <main class="content">
         <h1>게임 대기실</h1>
-        
         <button id="startBtn" class="start-btn" onclick="startGame()">🔥 게임 시작</button>
         <p id="guestMsg" style="display:none; color:#666;">방장이 설정을 마치고 게임을 시작할 때까지 대기하세요.</p>
-        
         <br><br>
         <button id="toggleBtn" onclick="toggleView()" style="background-color:#607D8B; color:white; border:none;">커스텀 문제 확인</button>
         <br><br><hr><br>
@@ -82,52 +74,43 @@
         <div id="settingsArea">
             <div id="basicSettings">
                 <span>라운드 수 </span>
-                <select id="roundsSelect" class="input-style" style="width: 200px;" onchange="syncSetting('roundsSelect', this.value)">
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="75">75</option>
-                    <option value="100">100</option>
-                    <option value="150">150</option>
-                    <option value="200">200</option>
+                <select id="roundsSelect" class="input-style" style="width: 200px;" onchange="toggleRoundInput(this)">
+                    <option value="25">25</option><option value="50">50</option><option value="75">75</option>
+                    <option value="100">100</option><option value="150">150</option><option value="200">200</option>
                     <option value="custom">직접 입력...</option>
                 </select>
                 <span id="customRoundArea" style="display: none;">
-                    <input type="number" id="roundsInput" class="input-style" placeholder="숫자" style="width: 80px;" onchange="syncSetting('roundsInput', this.value)">
+                    <input type="number" id="roundsInput" class="input-style" placeholder="숫자" style="width: 80px;">
                     <button onclick="resetRoundInput()">↺</button>
                 </span>
                 <br>
                 <span>라운드 시간 </span>
-                <select id="timeSelect" class="input-style" style="width: 200px;" onchange="syncSetting('timeSelect', this.value)">
-                    <option value="15">15초</option>
-                    <option value="30" selected>30초</option>
-                    <option value="45">45초</option>
-                    <option value="60">60초</option>
+                <select id="timeSelect" class="input-style" style="width: 200px;">
+                    <option value="15">15초</option><option value="30" selected>30초</option>
+                    <option value="45">45초</option><option value="60">60초</option>
                 </select>
                 <br>
                 <span>힌트 </span>
-                <select id="hintOnOffSelect" class="input-style" style="width: 200px;" onchange="syncSetting('hintOnOffSelect', this.value)">
-                    <option value="off">끄기</option>
-                    <option value="on">켜기</option>
+                <select id="hintOnOffSelect" class="input-style" style="width: 200px;">
+                    <option value="off">끄기</option><option value="on">켜기</option>
                 </select>
                 <br>
                 <span>스킵 투표율 </span>
-                <select id="skipVoteRatioSelect" class="input-style" style="width: 200px;" onchange="syncSetting('skipVoteRatioSelect', this.value)">
+                <select id="skipVoteRatioSelect" class="input-style" style="width: 200px;">
                     <option value="noSkip">스킵 없음</option>
                     <option value="overHalf" selected>과반수 이상</option>
                     <option value="all">전부</option>
                 </select>
                 <br>
                 <span>채팅모드 </span>
-                <select id="chatModeSelect" class="input-style" style="width: 200px;" onchange="syncSetting('chatModeSelect', this.value)">
+                <select id="chatModeSelect" class="input-style" style="width: 200px;">
                     <option value="separated">정답자 채팅 분리</option>
                     <option value="censored">정답 검열</option>
                 </select>
                 <br>
-                
                 <span>장르 선택 </span>
-                <select id="genreSelect" class="input-style" style="width: 200px;" onchange="syncSetting('genreSelect', this.value)">
-                    <option value="random" selected>랜덤</option>
-                    <option value="jpop">J-POP</option>
+                <select id="genreSelect" class="input-style" style="width: 200px;">
+                    <option value="random" selected>랜덤</option><option value="jpop">J-POP</option>
                 </select>
                 <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px; margin-left: 60px;">
                     ※ K-POP, POP 등 장르 추후 업데이트 예정
@@ -135,16 +118,7 @@
             </div>
 
             <div id="customViewer" style="display: none;">
-                <p>데이터 확인/수정 (방장만 수정 가능)</p>
-                <div class="info-msg">※ 정답이 여러 개일 경우 "정답1,정답2"처럼 쉼표로 구분해서 입력하세요.</div>
-                
-                <div id="hostOnlyButtons">
-                    <button class="file-btn" onclick="document.getElementById('fileInput').click()">📂 불러오기</button>
-                    <button class="file-btn" onclick="exportToJson()">💾 저장하기</button>
-                    <button class="copy-btn" onclick="copyJsonToClipboard()">📋 복사하기</button>
-                    <input type="file" id="fileInput" style="display: none;" onchange="importFromFile(this)" accept=".json">
-                </div>
-                <textarea id="jsonEditor" class="textarea-style" onchange="syncSetting('jsonEditor', this.value)"></textarea>
+                <textarea id="jsonEditor" class="textarea-style"></textarea>
             </div>
         </div>
     </main>
@@ -160,15 +134,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io({ transports: ['websocket'] });
-        let currentRoomCode = null;
-        let myNickname = sessionStorage.getItem("nickname");
-        let isHost = sessionStorage.getItem("isHost") === "true"; 
+        let currentRoomCode = null, myNickname = sessionStorage.getItem("nickname"), isHost = sessionStorage.getItem("isHost") === "true";
         let globalVolume = localStorage.getItem('gameVolume') || 50;
-
-        const defaultTemplate = [
-            { "link": "https://youtu.be/example1", "startTime": "0", "answer": "정답1,정답2", "hint": "생략 가능" },
-            { "link": "https://youtu.be/example2", "startTime": "30", "answer": "정답3", "hint": "" }
-        ];
 
         window.onload = function() {
             if(!myNickname) { alert("로그인 정보가 없습니다."); location.href='/'; return; }
@@ -176,15 +143,9 @@
             document.getElementById('volumeValue').innerText = globalVolume;
             setupUI();
 
-            if (isHost) {
-                const savedData = sessionStorage.getItem("customProblems");
-                const editor = document.getElementById('jsonEditor');
-                if (savedData && savedData !== "[]") {
-                    try { editor.value = JSON.stringify(JSON.parse(savedData), null, 2); } catch(e){}
-                } else { 
-                    editor.value = JSON.stringify(defaultTemplate, null, 2); 
-                }
-            }
+            const savedData = sessionStorage.getItem("customProblems");
+            const editor = document.getElementById('jsonEditor');
+            if (isHost) editor.value = (savedData && savedData !== "[]") ? JSON.stringify(JSON.parse(savedData), null, 2) : "[]";
 
             const params = new URLSearchParams(window.location.search);
             if (params.get('room')) {
@@ -204,72 +165,36 @@
             socket.emit('join_room', { nickname: myNickname, roomCode: currentRoomCode });
         }
 
-        socket.on('user_joined', (data) => updateUserList(data.users, data.currentCount, data.maxCount, data.hostId));
-
-        socket.on('settings_changed', (data) => {
-            if (isHost) return; 
-            const el = document.getElementById(data.type);
-            if(el) {
-                el.value = data.value;
-                if(data.type === 'roundsSelect') toggleRoundInput(el);
-            }
-        });
-
-        socket.on('game_started', () => { location.href = `/inGame?room=${currentRoomCode}`; });
-
         socket.on('chat_message', (data) => {
             const list = document.getElementById('chatList');
             const li = document.createElement('li');
-            li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`;
+            if (data.type === 'system') { li.className = 'system-msg chat-system'; li.innerText = data.msg; }
+            else { li.innerHTML = `<b>${data.nickname}:</b> ${data.msg}`; }
             list.appendChild(li);
             list.scrollTop = list.scrollHeight;
         });
 
+        socket.on('user_joined', (data) => updateUserList(data.users, data.currentCount, data.maxCount, data.hostId));
+        socket.on('game_started', () => { location.href = `/inGame?room=${currentRoomCode}`; });
         socket.on('change_host', (data) => { 
-            if(socket.id === data.newHostId) { 
-                alert("👑 방장이 되었습니다!"); 
-                isHost = true; 
-                sessionStorage.setItem("isHost", "true"); 
-                setupUI(); 
-            } 
+            if(socket.id === data.newHostId) { isHost = true; sessionStorage.setItem("isHost", "true"); setupUI(); alert("👑 방장이 되었습니다!"); } 
         });
 
         function setupUI() {
-            const startBtn = document.getElementById('startBtn');
-            const guestMsg = document.getElementById('guestMsg');
-            const hostBtns = document.getElementById('hostOnlyButtons');
+            const startBtn = document.getElementById('startBtn'), guestMsg = document.getElementById('guestMsg');
             if (isHost) {
                 document.querySelectorAll('select, input, textarea').forEach(el => { el.disabled = false; });
-                startBtn.style.display = 'inline-block';
-                guestMsg.style.display = 'none';
-                hostBtns.style.display = 'block';
+                startBtn.style.display = 'inline-block'; guestMsg.style.display = 'none';
             } else {
                 document.querySelectorAll('select, input, textarea').forEach(el => { if(el.id !== 'chatInput') el.disabled = true; });
-                startBtn.style.display = 'none';
-                guestMsg.style.display = 'block';
-                hostBtns.style.display = 'none';
+                startBtn.style.display = 'none'; guestMsg.style.display = 'block';
             }
         }
 
         function updateUserList(users, currentCount, maxCount, hostId) {
             const list = document.getElementById('userList');
             document.getElementById('userCount').innerText = `(${currentCount}/${maxCount})`;
-            list.innerHTML = "";
-            users.forEach(u => {
-                const li = document.createElement('li');
-                // 방장 왕관 추가
-                li.innerText = (u.id === hostId ? "👑 " : "") + u.nickname;
-                // 나(Me) 초록색 강조 복구
-                if(u.nickname === myNickname) li.classList.add('me');
-                list.appendChild(li);
-            });
-        }
-
-        function syncSetting(type, value) {
-            if(isHost && currentRoomCode) {
-                if(type === 'roundsSelect') toggleRoundInput(document.getElementById('roundsSelect'));
-                socket.emit('update_settings', { roomCode: currentRoomCode, type, value });
-            }
+            list.innerHTML = users.map(u => `<li class="${u.nickname === myNickname ? 'me' : ''}">${(u.id === hostId ? "👑 " : "") + u.nickname}</li>`).join('');
         }
 
         function startGame() {
@@ -290,30 +215,19 @@
             });
         }
 
-        function toggleView() { 
-            const basic = document.getElementById('basicSettings');
-            const custom = document.getElementById('customViewer');
-            const btn = document.getElementById('toggleBtn');
-            const isNone = custom.style.display === 'none';
-            custom.style.display = isNone ? 'block' : 'none';
-            basic.style.display = isNone ? 'none' : 'block';
-            btn.innerText = isNone ? "기본 설정으로 돌아가기" : (isHost ? "커스텀 문제 확인" : "커스텀 문제 보기 (수정 불가)");
-        }
-
+        function toggleRoundInput(sel) { if(sel.value === 'custom') { sel.style.display = 'none'; document.getElementById('customRoundArea').style.display = 'inline-block'; } }
+        function resetRoundInput() { document.getElementById('customRoundArea').style.display = 'none'; document.getElementById('roundsSelect').style.display = 'inline-block'; document.getElementById('roundsSelect').value = '25'; }
         function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
         function closeSettings(e) { if (e.target.id === 'settingsModal') e.target.style.display = 'none'; }
         function saveVolume(val) { globalVolume = val; document.getElementById('volumeValue').innerText = val; localStorage.setItem('gameVolume', val); }
         function copyRoomCode() { navigator.clipboard.writeText(currentRoomCode); alert("복사완료"); }
-        function resetRoundInput() { document.getElementById('customRoundArea').style.display = 'none'; document.getElementById('roundsSelect').style.display = 'inline-block'; }
-        function toggleRoundInput(sel) { if(sel.value === 'custom') { sel.style.display = 'none'; document.getElementById('customRoundArea').style.display = 'inline-block'; } }
-
-        async function copyJsonToClipboard() { await navigator.clipboard.writeText(document.getElementById('jsonEditor').value); alert("복사완료"); }
-        function importFromFile(i) { const r = new FileReader(); r.onload = e => { document.getElementById('jsonEditor').value = JSON.stringify(JSON.parse(e.target.result), null, 2); syncSetting('jsonEditor', document.getElementById('jsonEditor').value); }; r.readAsText(i.files[0]); }
-        function exportToJson() { const blob = new Blob([document.getElementById('jsonEditor').value], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'data.json'; a.click(); }
-
-        document.getElementById('chatInput').addEventListener('keypress', (e) => {
-            if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; }
-        });
+        function toggleView() { 
+            const basic = document.getElementById('basicSettings'), custom = document.getElementById('customViewer'), btn = document.getElementById('toggleBtn');
+            const isNone = custom.style.display === 'none';
+            custom.style.display = isNone ? 'block' : 'none'; basic.style.display = isNone ? 'none' : 'block';
+            btn.innerText = isNone ? "기본 설정으로 돌아가기" : "커스텀 문제 확인";
+        }
+        document.getElementById('chatInput').addEventListener('keypress', (e) => { if(e.key === 'Enter' && e.target.value.trim()) { socket.emit('send_chat', e.target.value.trim()); e.target.value = ''; } });
     </script>
 </body>
 </html>
